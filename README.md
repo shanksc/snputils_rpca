@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://snputils.org">
-    <img src="assets/logo.png" width="300" alt="snputils logo">
+    <img src="https://raw.githubusercontent.com/AI-sandbox/snputils/refs/heads/main/assets/logo.png" width="300" alt="snputils logo">
   </a>
 </p>
 
@@ -75,7 +75,7 @@ Working with ancestry files, performing processing operations, and creating visu
   - Dataset-level
 
 <p align="center">
-    <img src="assets/lai_dataset_level.png" width="800">
+    <img src="https://raw.githubusercontent.com/AI-sandbox/snputils/refs/heads/main/assets/lai_dataset_level.png" width="800">
 </p>
 
 
@@ -89,7 +89,7 @@ Working with ancestry files, performing processing operations, and creating visu
 Our benchmark demonstrates superior performance compared to existing tools:
 
 <p align="center">
-    <img src="benchmark/benchmark.png" width="800">
+    <img src="https://raw.githubusercontent.com/AI-sandbox/snputils/refs/heads/main/benchmark/benchmark.png" width="800">
 </p>
 
 *Reading performance comparison for chromosome 22 data across different tools. See the [benchmark directory](benchmark/) for detailed methodology and results.*
