@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "snputils"
+version = "0.2.0"
+description = "SNP utils"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "BSD 3-Clause License"}
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "numpy<2; python_version < '3.10'",
+    "numpy; python_version >= '3.10'",
+    "pandas",
+    "pandas-stubs",
+    "scikit-learn",
+    "scikit-allel",
+    "Pgenlib",
+    "matplotlib",
+    "joblib",
+    "tqdm",
+    "polars",
+    "plotly",
+    "plotly_express",
+    "kaleido",
+    "nbformat",
+    "pong",
+    "adjustText"
+]
+
+[project.optional-dependencies]
+gpu = ["torch"]
+jupyter = ["jupyterlab"]
+testing = ["tox", "pytest", "pytest-cov"]
+docs = ["pdoc", "torch"]  # pdoc requires to import all the libraries that are imported in the code
+benchmark = ["pytest", "pytest-benchmark", "memory_profiler",
+             "pandas-plink", "pysam", "scikit-allel", "sgkit[plink]", "hail", "pysnptools", "Pgenlib", "cyvcf2", "plinkio", "PyVCF3"]
+
+[project.scripts]
+snputils = "snputils.tools.entry:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["snputils*"]
+
+[tool.setuptools_scm]
+
+[tool.mypy]
+python_version = "3.8"
+ignore_missing_imports = true

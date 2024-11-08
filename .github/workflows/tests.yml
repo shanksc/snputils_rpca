@@ -1,0 +1,55 @@
+name: tests
+
+on:
+  # push:
+  #   branches:
+  #     - main
+  #     - fix_tests
+  #   tags:
+  #     - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.13"]
+
+    steps:
+    - name: Debug - Starting workflow
+      run: echo "Starting workflow"
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Debug - Code checked out
+      run: echo "Code checked out"
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Debug - Python setup completed
+      run: echo "Python setup completed"
+
+    - name: Install dependencies
+      run: |
+        echo "Installing dependencies"
+        python -m pip install --upgrade pip
+        python -m pip install setuptools tox tox-gh-actions
+
+    - name: Debug - Dependencies installed
+      run: echo "Dependencies installed"
+
+    - name: Run tests
+      run: |
+        echo "Running tests with tox"
+        python -m tox
+
+    - name: Debug - Tests completed
+      run: echo "Tests completed"
