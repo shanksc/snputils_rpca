@@ -91,6 +91,7 @@ Our benchmark demonstrates superior performance compared to existing tools:
 <p align="center">
     <img src="benchmark/benchmark.png" width="800">
 </p>
+
 *Reading performance comparison for chromosome 22 data across different tools. See the [benchmark directory](benchmark/) for detailed methodology and results.*
 
 The **snputils** package is continuously updated with new features and improvements. Future releases will include support for statistical computations, admixture simulations, command-line tools, and more.
