@@ -43,7 +43,7 @@ Similarly, reading BED or PGEN filesets is straightforward:
 snpobj = su.read_snp("path/to/file.pgen")
 ```
 
-Working with ancestry files, performing processing operations, and creating visualizations is just as straightforward. See the [demos directory](demos/) for examples.
+Working with ancestry files, performing processing operations, and creating visualizations is just as straightforward. See the [demos directory](https://github.com/AI-sandbox/snputils/tree/main/demos) for examples.
 
 ### File Format Support
 **snputils** aims to provide the fastest available readers and writers for various genomic data formats:
@@ -92,14 +92,14 @@ Our benchmark demonstrates superior performance compared to existing tools:
     <img src="https://raw.githubusercontent.com/AI-sandbox/snputils/refs/heads/main/benchmark/benchmark.png" width="800">
 </p>
 
-*Reading performance comparison for chromosome 22 data across different tools. See the [benchmark directory](benchmark/) for detailed methodology and results.*
+*Reading performance comparison for chromosome 22 data across different tools. See the [benchmark directory](https://github.com/AI-sandbox/snputils/tree/main/benchmark) for detailed methodology and results.*
 
 The **snputils** package is continuously updated with new features and improvements. Future releases will include support for statistical computations, admixture simulations, command-line tools, and more.
 
 ## Documentation & Support
 
 - **API Reference**: Visit our comprehensive documentation at [docs.snputils.org](https://docs.snputils.org).
-- **Tutorials & Examples**: Check out our demos in the [demos directory](demos/).
+- **Tutorials & Examples**: Check out our demos in the [demos directory](https://github.com/AI-sandbox/snputils/tree/main/demos).
 - **Issues & Support**: [GitHub Issues](https://github.com/AI-sandbox/snputils/issues).
 
 ## Acknowledgments
