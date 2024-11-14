@@ -28,14 +28,14 @@ def data_path():
         if not file_path.exists():
             print(f"Downloading {file_name} to {data_path}. This may take a while...")
             urllib.request.urlretrieve(url, file_path)
-            if file_name.endswith(".zip"):
+            if file_path.suffix == ".zip":
                 with zipfile.ZipFile(file_path, "r") as zip_ref:
                     zip_ref.extractall(data_path)
                 subprocess.run(
                     ["chmod", "+x", data_path / "plink2"], cwd=str(data_path)
                 )
 
-        if file_name.endswith(".vcf.gz"):
+        if file_path.suffixes[-2:] == ['.vcf', '.gz']:
             # Subset sample files
             subset_file = data_path / "subset.txt"
             if not subset_file.exists():

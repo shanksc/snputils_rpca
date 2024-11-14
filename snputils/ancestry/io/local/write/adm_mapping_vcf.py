@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 from typing import Dict
+from pathlib import Path
 
 from snputils.ancestry.genobj.local import LocalAncestryObject
 from snputils.snp.genobj.snpobj import SNPObject
@@ -56,10 +57,15 @@ class AdmixtureMappingVCFWriter:
 
             # Define the output file format, ensuring it has the correct ancestry-specific suffix
             file_extension = (".vcf", ".bcf")
-            if not self.__file.endswith(file_extension):
-                output_file = self.__file +  f"_{anc_string}.vcf"
+            file_path = Path(self.__file)
+            
+            # Check if file has one of the specified extensions
+            if file_path.suffix not in file_extension:
+                # If file does not have the correct extension, default to ".vcf"
+                output_file = file_path.with_name(f"{file_path.stem}_{anc_string}.vcf")
             else:
-                output_file = f"{self.__file[:-4]}_{anc_string}{self.__file[-4:]}"
+                # If file has the correct extension, insert the ancestry string before the extension
+                output_file = file_path.with_name(f"{file_path.stem}_{anc_string}{file_path.suffix}")
 
             # Format start and end positions for the VCF file
             if self.__laiobj.physical_pos is not None:

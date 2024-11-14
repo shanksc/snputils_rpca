@@ -2,6 +2,7 @@ import logging
 import pandas as pd
 import numpy as np
 import pgenlib as pg
+from pathlib import Path
 
 from snputils.snp.genobj import SNPObject
 
@@ -19,14 +20,14 @@ class BEDWriter:
 
     def __init__(self, snpobj: SNPObject, filename: str):
         self.__snpobj = snpobj
-        self.__filename = filename
+        self.__filename = Path(filename)
 
     def write(self):
         """Writes the SNPObject to bed/bim/fam formats."""
 
         # Save .bed file
-        if not self.__filename.endswith((".bed")):
-            self.__filename += ".bed"
+        if self.__filename.suffix != '.bed':
+            self.__filename = self.__filename.with_name(self.__filename.name + '.bed')
 
         log.info(f"Writing .bed file: {self.__filename}")
 
@@ -57,8 +58,8 @@ class BEDWriter:
         log.info(f"Finished writing .bed file: {self.__filename}")
 
         # Remove .bed from the file name
-        if self.__filename.endswith(("bed")):
-            self.__filename = self.__filename[:-4]
+        if self.__filename.suffix == '.bed':
+            self.__filename = self.__filename.with_suffix('')
 
         # Save .fam file
         log.info(f"Writing .fam file: {self.__filename}")

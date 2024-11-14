@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from pathlib import Path
 from .utils import create_benchmark_test
 
 
@@ -68,7 +69,7 @@ READERS = [
 @pytest.mark.parametrize("reader,name", READERS)
 def test_vcf_readers(benchmark, reader, name, path, memory_profile):
     """Benchmark readers and verify output"""
-    if not path.endswith(".vcf.gz"):
-        path = path + ".vcf.gz"
+    if path.suffixes[-2:] != ['.vcf', '.gz']:
+        path = path.with_suffix('.vcf.gz')
     ref_array = read_vcf_snputils(path)
     create_benchmark_test(benchmark, reader, path, name, ref_array, memory_profile)

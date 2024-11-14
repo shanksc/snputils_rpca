@@ -66,11 +66,11 @@ class MSPWriter(LAIBaseWriter):
         log.info(f"LAI object contains: {self.laiobj.n_samples} samples, {self.laiobj.n_ancestries} ancestries.")
 
         # Define the required file extension for the output
-        file_extension = (".msp")
+        file_extension = ".msp"
 
-        # Append '.msp' extension to filename if not already present
-        if not self.__filename.endswith(file_extension):
-            self.__filename += file_extension
+        # Append '.msp' extension to __file if not already present
+        if not self.__file.name.endswith(file_extension):
+            self.__file = self.__file.with_name(self.__file.name + file_extension)
         
         # Prepare columns for the DataFrame
         columns = ["spos", "epos", "sgpos", "egpos", "n snps"]
@@ -101,7 +101,7 @@ class MSPWriter(LAIBaseWriter):
         log.info(f"Writing MSP file to '{self.file}'...")
 
         # Save the DataFrame to the .msp file in tab-separated format
-        lai_df.to_csv(self.filename, sep="\t", index=False, header=False)
+        lai_df.to_csv(self.__file, sep="\t", index=False, header=False)
         
         # Construct the second line for the output file containing the column headers
         second_line = "#chm" + "\t" + "\t".join(columns)
@@ -117,7 +117,7 @@ class MSPWriter(LAIBaseWriter):
             )
 
             # Open the file for reading and prepend the first line       
-            with open(self.filename, "r+") as f:
+            with open(self.__file, "r+") as f:
                 content = f.read()
                 f.seek(0,0)
                 f.write(first_line.rstrip('\r\n') + '\n' + second_line + '\n' + content)
