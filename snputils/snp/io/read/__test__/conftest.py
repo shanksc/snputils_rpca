@@ -18,7 +18,7 @@ def data_path():
     os.makedirs(data_path, exist_ok=True)
 
     files_urls = {
-        "plink2_linux_x86_64_20241020.zip": "https://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_20241020.zip",
+        "plink2_linux_x86_64_20241020.zip": "https://s3.amazonaws.com/plink2-assets/alpha5/plink2_linux_x86_64_20241020.zip",
         "ALL.chr21.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz": "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20181203_biallelic_SNV/ALL.chr21.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz",
     }
 
