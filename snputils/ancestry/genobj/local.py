@@ -308,8 +308,8 @@ class LocalAncestryObject(AncestryObject):
         Filter genomic windows based on specified indexes. 
 
         This method updates the `lai` attribute to include or exclude the specified genomic windows. 
-        Attributes such as `chromosomes`, `centimorgan_pos` and `physical_pos` will also be updated 
-        accordingly if they are not None. The order of genomic windows is preserved.
+        Attributes such as `window_sizes`, `centimorgan_pos`, `chromosomes`, and `physical_pos` will also be 
+        updated accordingly if they are not None. The order of genomic windows is preserved.
 
         Negative indexes are supported and follow 
         [NumPy's indexing conventions](https://numpy.org/doc/stable/user/basics.indexing.html). 
@@ -351,7 +351,8 @@ class LocalAncestryObject(AncestryObject):
         # Filter `lai`
         filtered_lai = self['lai'][mask, :] 
         
-        # Filter `chromosomes`, `centimorgan_pos`, and `physical_pos`, checking if they are None before filtering
+        # Filter `window_sizes`, `chromosomes`, `centimorgan_pos`, and `physical_pos`, checking if they are None before filtering
+        filtered_window_sizes = self['window_sizes'][mask] if self['window_sizes'] is not None else None
         filtered_chromosomes = self['chromosomes'][mask] if self['chromosomes'] is not None else None
         filtered_centimorgan_pos = self['centimorgan_pos'][mask, :] if self['centimorgan_pos'] is not None else None
         filtered_physical_pos = self['physical_pos'][mask, :] if self['physical_pos'] is not None else None
@@ -359,6 +360,8 @@ class LocalAncestryObject(AncestryObject):
         # Modify the original object if `inplace=True`, otherwise create and return a copy
         if inplace:
             self['lai'] = filtered_lai
+            if filtered_window_sizes is not None:
+                self['window_sizes'] = filtered_window_sizes
             if filtered_chromosomes is not None:
                 self['chromosomes'] = filtered_chromosomes
             if filtered_centimorgan_pos is not None:
@@ -369,6 +372,8 @@ class LocalAncestryObject(AncestryObject):
         else:
             laiobj = self.copy()
             laiobj['lai'] = filtered_lai
+            if filtered_window_sizes is not None:
+                laiobj['window_sizes'] = filtered_window_sizes
             if filtered_chromosomes is not None:
                 laiobj['chromosomes'] = filtered_chromosomes
             if filtered_centimorgan_pos is not None:
