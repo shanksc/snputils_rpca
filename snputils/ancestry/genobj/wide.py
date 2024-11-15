@@ -26,14 +26,14 @@ class GlobalAncestryObject(AncestryObject):
             P (array of shape (n_snps, n_ancestries)):
                 A 2D array containing per-ancestry SNP frequencies. Each row corresponds to a SNP,
                 and each column corresponds to an ancestry.
-            samples (Sequence, optional):
-                A sequence containing unique identifiers for each sample. Length should be `n_samples`.
-                If None, sample identifiers are assigned as integers from `0` to `n_samples - 1`.
-            snps (Sequence, optional):
-                A sequence containing identifiers for each SNP. Length should be `n_snps`.
-                If None, SNPs are assigned as integers from `0` to `n_snps - 1`.
-            ancestries (Sequence, optional):
-                A sequence containing ancestry labels for each sample. Length should be `n_samples`.
+            samples (sequence of length n_samples, optional):
+                A sequence containing unique identifiers for each sample. If None, sample identifiers 
+                are assigned as integers from `0` to `n_samples - 1`.
+            snps (sequence of length n_snps, optional):
+                A sequence containing identifiers for each SNP. If None, SNPs are assigned as integers 
+                from `0` to `n_snps - 1`.
+            ancestries (sequence of length n_samples, optional):
+                A sequence containing ancestry labels for each sample.
         """
         # Determine dimensions
         n_samples, n_ancestries_Q = Q.shape
@@ -109,8 +109,9 @@ class GlobalAncestryObject(AncestryObject):
         Retrieve `Q`.
 
         Returns:
-            numpy.ndarray: A 2D array containing per-sample ancestry proportions. Each row corresponds 
-                           to a sample, and each column corresponds to an ancestry.
+            **array of shape (n_samples, n_ancestries):** 
+                A 2D array containing per-sample ancestry proportions. Each row corresponds to a sample,
+                and each column corresponds to an ancestry.
         """
         return self.__Q
     
@@ -131,8 +132,9 @@ class GlobalAncestryObject(AncestryObject):
         Retrieve `P`.
 
         Returns:
-            numpy.ndarray: A 2D array containing per-ancestry SNP frequencies. Each row corresponds to a SNP,
-                           and each column corresponds to an ancestry.
+            **array of shape (n_snps, n_ancestries):** 
+                A 2D array containing per-ancestry SNP frequencies. Each row corresponds to a SNP,
+                and each column corresponds to an ancestry.
         """
         return self.__P
 
@@ -154,8 +156,9 @@ class GlobalAncestryObject(AncestryObject):
         Alias for `P`.
 
         Returns:
-            numpy.ndarray: A 2D array containing per-ancestry SNP frequencies. Each row corresponds to a SNP,
-                           and each column corresponds to an ancestry.
+            **array of shape (n_snps, n_ancestries):** 
+                A 2D array containing per-ancestry SNP frequencies. Each row corresponds to a SNP,
+                and each column corresponds to an ancestry.
         """
         return self.P
 
@@ -176,8 +179,9 @@ class GlobalAncestryObject(AncestryObject):
         Retrieve `samples`.
 
         Returns:
-            numpy.ndarray: An array containing unique identifiers for each sample. If None, sample 
-                           identifiers are assigned as integers from `0` to `n_samples - 1`.
+            **array of shape (n_samples,):** 
+                An array containing unique identifiers for each sample. If None, sample 
+                identifiers are assigned as integers from `0` to `n_samples - 1`.
         """
         return self.__samples
         
@@ -199,8 +203,9 @@ class GlobalAncestryObject(AncestryObject):
         Retrieve `snps`.
 
         Returns:
-            numpy.ndarray: An array containing identifiers for each SNP. Length should be `n_snps`.
-                           If None, SNPs are assigned as integers from `0` to `n_snps - 1`.
+            **array of shape (n_snps,):** 
+                An array containing identifiers for each SNP. If None, SNPs are assigned as integers 
+                from `0` to `n_snps - 1`.
         """
         return self.__snps
 
@@ -216,14 +221,14 @@ class GlobalAncestryObject(AncestryObject):
             )
         self.__snps = np.asarray(x)
 
-
     @property
     def ancestries(self) -> Optional[np.ndarray]:
         """
         Retrieve `ancestries`.
 
         Returns:
-            numpy.ndarray: An array containing ancestry labels for each sample. Length should be `n_samples`.
+            **array of shape (n_samples,):** 
+                An array containing ancestry labels for each sample.
         """
         return self.__ancestries
     
@@ -252,7 +257,7 @@ class GlobalAncestryObject(AncestryObject):
         Retrieve `n_samples`.
 
         Returns:
-            int: The total number of samples.
+            **int:** The total number of samples.
         """
         return self.__Q.shape[0]
 
@@ -262,7 +267,7 @@ class GlobalAncestryObject(AncestryObject):
         Retrieve `n_snps`.
 
         Returns:
-            int: The total number of SNPs.
+            **int:** The total number of SNPs.
         """
         return self.__P.shape[0]
 
@@ -272,26 +277,27 @@ class GlobalAncestryObject(AncestryObject):
         Retrieve `n_ancestries`.
 
         Returns:
-            int: The total number of unique ancestries.
+            **int:** The total number of unique ancestries.
         """
         return self.__Q.shape[1]
 
     def copy(self) -> 'GlobalAncestryObject':
         """
-        Create and return a copy of the current `GlobalAncestryObject` instance.
+        Create and return a copy of `self`.
 
         Returns:
-            GlobalAncestryObject: A new instance of the current object.
+            **GlobalAncestryObject:** A new instance of the current object.
         """
         return copy.copy(self)
 
-    def keys(self) -> List:
+    def keys(self) -> List[str]:
         """
-        Retrieve a list of public attribute names for this `GlobalAncestryObject` instance.
+        Retrieve a list of public attribute names for `self`.
 
         Returns:
-            List: A list of attribute names, with internal name-mangling removed, 
-                  for easier reference to public attributes in the instance.
+            **list of str:** 
+                A list of attribute names, with internal name-mangling removed, 
+                for easier reference to public attributes in the instance.
         """
         return [attr.replace('_GlobalAncestryObject__', '').replace('_AncestryObject__', '') for attr in vars(self)]
 
@@ -300,7 +306,7 @@ class GlobalAncestryObject(AncestryObject):
         Perform sanity checks to ensure that matrix dimensions are consistent with expected sizes.
         
         Raises:
-            ValueError: If any of the matrix dimensions do not match the expected sizes.
+            **ValueError:** If any of the matrix dimensions do not match the expected sizes.
         """       
         # Check that the Q matrix has the correct shape
         if self.__Q.shape != (self.n_samples, self.n_ancestries):
@@ -344,21 +350,19 @@ class GlobalAncestryObject(AncestryObject):
 
     def save(self, file_prefix: Union[str, Path]) -> None:
         """
-        Save the data stored in the `GlobalAncestryObject` instance into multiple ADMIXTURE files:
+        Save the data stored in `self` into multiple ADMIXTURE files:
 
-            - Q matrix file: `<file_prefix>.K.Q`
-            - P matrix file: `<file_prefix>.K.P`
-            - Sample IDs file: `<file_prefix>.sample_ids.txt` (if sample IDs are available)
-            - SNP IDs file: `<file_prefix>.snp_ids.txt` (if SNP IDs are available)
-            - Ancestry file: `<file_prefix>.map` (if ancestries information is available)
-
-        where `K` is the total number of ancestries.
+            - Q matrix file: `<file_prefix>.<n_ancestries>.Q`.
+            - P matrix file: `<file_prefix>.<n_ancestries>.P`.
+            - Sample IDs file: `<file_prefix>.sample_ids.txt` (if sample IDs are available).
+            - SNP IDs file: `<file_prefix>.snp_ids.txt` (if SNP IDs are available).
+            - Ancestry file: `<file_prefix>.map` (if ancestries information is available).
 
         Args:
             file_prefix (str or pathlib.Path): 
-                The prefix for the output file names, including any parent directories. 
-                This prefix is used to generate the output file names and should not include 
-                the file extensions.
+                The base prefix for output file names, including directory path but excluding file extensions. 
+                The prefix is used to generate specific file names for each output, with file-specific 
+                suffixes appended as described above (e.g., `file_prefix.K.Q` for the Q matrix file).
         """
         from snputils.ancestry.io.wide.write.admixture import AdmixtureWriter
 
