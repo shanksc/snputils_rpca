@@ -1,6 +1,7 @@
+import pathlib
 import numpy as np
 import copy
-from typing import Optional
+from typing import Optional, Dict, List, Union
 
 from snputils.snp.genobj.snpobj import SNPObject
 from snputils.ancestry.genobj.local import LocalAncestryObject
@@ -10,9 +11,10 @@ from ._utils.gen_tools import array_process, process_labels_weights
 
 class maasMDS:
     """
-    A class for performing multiple array ancestry-specific multidimensional scaling (maasMDS).
+    A class for multiple array ancestry-specific multidimensional scaling (maasMDS).
 
-    If `snpobj`, `laiobj`, `labels_file`, and `ancestry` parameters are all provided during instantiation, 
+    This class supports both separate and averaged strand processing for SNP data. If the `snpobj`, 
+    `laiobj`, `labels_file`, and `ancestry` parameters are all provided during instantiation, 
     the `fit_transform` method will be automatically called, applying the specified maasMDS method to transform 
     the data upon instantiation.
     """
@@ -26,30 +28,28 @@ class maasMDS:
             prob_thresh: float = 0,
             average_strands: bool = False,
             is_weighted: bool = False,
-            groups_to_remove: dict = {},
+            groups_to_remove: Dict[int, List[str]] = {},
             min_percent_snps: float = 4,
             save_masks: bool = False,
             load_masks: bool = False,
-            masks_file: str = 'masks.npz',
+            masks_file: Union[str, pathlib.Path] = 'masks.npz',
             distance_type: str = 'AP',
             n_components: int = 2,
-            plot_reg: bool = True,
             rsid_or_chrompos: int = 2
         ):
         """
         Args:
             snpobj (SNPObject, optional): 
-                A SNPObject object instance.
+                A SNPObject instance.
             laiobj (LAIObject, optional): 
                 A LAIObject instance.
             labels_file (str, optional): 
-                Path to the labels file. It should be a `.tsv` file where the first column has header `indID` 
-                and contains the individual identifiers, and the second column has header `label` and contains 
-                the groups for all individuals. If `is_weighted=True`, a `weight` column with individual weights is required. 
-                Optionally, `combination` and `combination_weight` columns can specify sets of individuals to be combined 
-                into groups, with respective weights.
+                Path to the labels file in .tsv format. The first column, `indID`, contains the individual identifiers, and the second 
+                column, `label`, specifies the groups for all individuals. If `is_weighted=True`, a `weight` column with individual 
+                weights is required. Optionally, `combination` and `combination_weight` columns can specify sets of individuals to be 
+                combined into groups, with respective weights.
             ancestry (str, optional): 
-                Target ancestry for analysis, such as 'AFR' or 'EUR'.
+                Ancestry for which dimensionality reduction is to be performed. Ancestry counter starts at `0`.
             is_masked (bool, default=True): 
                 True if an ancestry file is passed for ancestry-specific masking, or False otherwise.
             prob_thresh (float, default=0.0): 
@@ -58,7 +58,7 @@ class maasMDS:
                 True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
             is_weighted (bool, default=False): 
                 True if weights are provided in the labels file, or False otherwise.
-            groups_to_remove (dict, default={}): 
+            groups_to_remove (dict of int to list of str, default={}): 
                 Dictionary specifying groups to exclude from analysis. Keys are array numbers, and values are 
                 lists of groups to remove for each array.
                 Example: `{1: ['group1', 'group2'], 2: [], 3: ['group3']}`.
@@ -68,16 +68,14 @@ class maasMDS:
             save_masks (bool, default=False): 
                 True if the masked matrices are to be saved in a `.npz` file, or False otherwise.
             load_masks (bool, default=False): 
-                True if the masked matrices are to be loaded from pre-existing `.npz` file (`masks_file`), or False otherwise.
-            masks_file (str, default="mask_files_eas.npz"): 
+                True if the masked matrices are to be loaded from a pre-existing `.npz` file specified by `masks_file`, or False otherwise.
+            masks_file (str or pathlib.Path, default='masks.npz'): 
                 Path to the `.npz` file used for saving/loading masked matrices.
             distance_type (str, default='AP'): 
                 Distance metric to use. Options to choose from are: 'Manhattan', 'RMS' (Root Mean Square), 'AP' (Average Pairwise).
                 If `average_strands=True`, use 'distance_type=AP'.
             n_components (int, default=2): 
                 The number of principal components.
-            plot_reg (bool, default=True): 
-                Whether to create a scatter plot of MDS results.
             rsid_or_chrompos (int, default=2): 
                 Format indicator for SNP IDs in the SNP data. Use 1 for `rsID` format or 2 for `chromosome_position`.
         """
@@ -96,7 +94,6 @@ class maasMDS:
         self.__masks_file = masks_file
         self.__distance_type = distance_type
         self.__n_components = n_components
-        self.__plot_reg = plot_reg
         self.__rsid_or_chrompos = rsid_or_chrompos
         self.__X_new_ = None  # Store transformed SNP data
 
@@ -126,11 +123,11 @@ class maasMDS:
         
     def copy(self) -> 'maasMDS':
         """
-        Create and return a copy of the current `maasMDS` instance.
+        Create and return a copy of `self`.
 
         Returns:
-            maasMDS: 
-            A new instance of the current object.
+            **maasMDS:** 
+                A new instance of the current object.
         """
         return copy.copy(self)
 
@@ -140,7 +137,7 @@ class maasMDS:
         Retrieve `snpobj`.
         
         Returns:
-            SNPObject: A SNPObject object instance.
+            **SNPObject:** A SNPObject instance.
         """
         return self.__snpobj
 
@@ -157,7 +154,7 @@ class maasMDS:
         Retrieve `laiobj`.
         
         Returns:
-            LocalAncestryObject: A LAIObject instance.
+            **LocalAncestryObject:** A LAIObject instance.
         """
         return self.__laiobj
 
@@ -174,12 +171,8 @@ class maasMDS:
         Retrieve `labels_file`.
         
         Returns:
-            str: 
-                Path to the labels file. It should be a `.tsv` file where the first column has header `indID` 
-                and contains the individual identifiers, and the second column has header `label` and contains 
-                the groups for all individuals. If `is_weighted=True`, a `weight` column with individual weights is required. 
-                Optionally, `combination` and `combination_weight` columns can specify sets of individuals to be combined 
-                into groups, with respective weights.
+            **str:** 
+                Path to the labels file in `.tsv` format.
         """
         return self.__labels_file
 
@@ -196,7 +189,7 @@ class maasMDS:
         Retrieve `ancestry`.
         
         Returns:
-            str: Target ancestry for analysis, such as 'AFR' or 'EUR'.
+            **str:** Ancestry for which dimensionality reduction is to be performed. Ancestry counter starts at `0`.
         """
         return self.__ancestry
 
@@ -213,7 +206,7 @@ class maasMDS:
         Retrieve `is_masked`.
         
         Returns:
-            bool: True if an ancestry file is passed for ancestry-specific masking, or False otherwise.
+            **bool:** True if an ancestry file is passed for ancestry-specific masking, or False otherwise.
         """
         return self.__is_masked
 
@@ -230,7 +223,7 @@ class maasMDS:
         Retrieve `prob_thresh`.
         
         Returns:
-            float: Minimum probability threshold for a SNP to belong to an ancestry.
+            **float:** Minimum probability threshold for a SNP to belong to an ancestry.
         """
         return self.__prob_thresh
 
@@ -247,7 +240,7 @@ class maasMDS:
         Retrieve `average_strands`.
         
         Returns:
-            bool: True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
+            **bool:** True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
         """
         return self.__average_strands
 
@@ -264,7 +257,7 @@ class maasMDS:
         Retrieve `is_weighted`.
         
         Returns:
-            bool: True if weights are provided in the labels file, or False otherwise.
+            **bool:** True if weights are provided in the labels file, or False otherwise.
         """
         return self.__is_weighted
 
@@ -276,20 +269,18 @@ class maasMDS:
         self.__is_weighted = x
 
     @property
-    def groups_to_remove(self) -> dict:
+    def groups_to_remove(self) -> Dict[int, List[str]]:
         """
         Retrieve `groups_to_remove`.
         
         Returns:
-            dict: 
-                Dictionary specifying groups to exclude from analysis. Keys are array numbers, and values are 
-                lists of groups to remove for each array.
-                Example: `{1: ['group1', 'group2'], 2: [], 3: ['group3']}`.
+            **dict of int to list of str:** Dictionary specifying groups to exclude from analysis. Keys are array numbers, and values are 
+                lists of groups to remove for each array. Example: `{1: ['group1', 'group2'], 2: [], 3: ['group3']}`.
         """
         return self.__groups_to_remove
 
     @groups_to_remove.setter
-    def groups_to_remove(self, x: dict) -> None:
+    def groups_to_remove(self, x: Dict[int, List[str]]) -> None:
         """
         Update `groups_to_remove`.
         """
@@ -301,7 +292,7 @@ class maasMDS:
         Retrieve `min_percent_snps`.
         
         Returns:
-            float: 
+            **float:** 
                 Minimum percentage of SNPs to be known in an individual for an individual to be included in the analysis. 
                 All individuals with fewer percent of unmasked SNPs than this threshold will be excluded.
         """
@@ -320,7 +311,7 @@ class maasMDS:
         Retrieve `save_masks`.
         
         Returns:
-            bool: True if the masked matrices are to be saved in a `.npz` file, or False otherwise.
+            **bool:** True if the masked matrices are to be saved in a `.npz` file, or False otherwise.
         """
         return self.__save_masks
 
@@ -337,7 +328,9 @@ class maasMDS:
         Retrieve `load_masks`.
         
         Returns:
-            bool: True if the masked matrices are to be loaded from pre-existing `.npz` file (`masks_file`), or False otherwise.
+            **bool:** 
+                True if the masked matrices are to be loaded from a pre-existing `.npz` file specified 
+                by `masks_file`, or False otherwise.
         """
         return self.__load_masks
 
@@ -349,17 +342,17 @@ class maasMDS:
         self.__load_masks = x
 
     @property
-    def masks_file(self) -> str:
+    def masks_file(self) -> Union[str, pathlib.Path]:
         """
         Retrieve `masks_file`.
         
         Returns:
-            str: Path to the `.npz` file used for saving/loading masked matrices.
+            **str or pathlib.Path:** Path to the `.npz` file used for saving/loading masked matrices.
         """
         return self.__masks_file
 
     @masks_file.setter
-    def masks_file(self, x: str) -> None:
+    def masks_file(self, x: Union[str, pathlib.Path]) -> None:
         """
         Update `masks_file`.
         """
@@ -371,7 +364,7 @@ class maasMDS:
         Retrieve `distance_type`.
         
         Returns:
-            str: 
+            **str:** 
                 Distance metric to use. Options to choose from are: 'Manhattan', 'RMS' (Root Mean Square), 'AP' (Average Pairwise).
                 If `average_strands=True`, use 'distance_type=AP'.
         """
@@ -390,7 +383,7 @@ class maasMDS:
         Retrieve `n_components`.
         
         Returns:
-            int: The number of principal components.
+            **int:** The number of principal components.
         """
         return self.__n_components
 
@@ -402,29 +395,12 @@ class maasMDS:
         self.__n_components = x
 
     @property
-    def plot_reg(self) -> bool:
-        """
-        Retrieve `plot_reg`.
-        
-        Returns:
-            bool: Whether to create a scatter plot of MDS results.
-        """
-        return self.__plot_reg
-
-    @plot_reg.setter
-    def plot_reg(self, x: bool) -> None:
-        """
-        Update `plot_reg`.
-        """
-        self.__plot_reg = x
-
-    @property
     def rsid_or_chrompos(self) -> int:
         """
         Retrieve `rsid_or_chrompos`.
         
         Returns:
-            int: Format indicator for SNP IDs in the SNP data. Use 1 for `rsID` format or 2 for `chromosome_position`.
+            **int:** Format indicator for SNP IDs in the SNP data. Use 1 for `rsID` format or 2 for `chromosome_position`.
         """
         return self.__rsid_or_chrompos
 
@@ -436,169 +412,13 @@ class maasMDS:
         self.__rsid_or_chrompos = x
 
     @property
-    def snpobj(self):
-        """Retrieve `snpobj`."""
-        return self.__snpobj
-
-    @snpobj.setter
-    def snpobj(self, value):
-        """Update `snpobj`."""
-        self.__snpobj = x
-
-    @property
-    def laiobj(self):
-        """Retrieve `laiobj`."""
-        return self.__laiobj
-
-    @laiobj.setter
-    def laiobj(self, value):
-        """Update `laiobj`."""
-        self.__laiobj = x
-
-    @property
-    def labels_file(self) -> str:
-        """Retrieve `labels_file`: Path to the labels file."""
-        return self.__labels_file
-
-    @labels_file.setter
-    def labels_file(self, x: str) -> None:
-        """Update `labels_file`."""
-        self.__labels_file = x
-
-    @property
-    def ancestry(self) -> str:
-        """Retrieve `ancestry`: Target ancestry for analysis."""
-        return self.__ancestry
-
-    @ancestry.setter
-    def ancestry(self, x: str) -> None:
-        """Update `ancestry`."""
-        self.__ancestry = x
-
-    @property
-    def is_masked(self) -> bool:
-        """Indicates if ancestry masking is applied."""
-        return self.__is_masked
-
-    @is_masked.setter
-    def is_masked(self, x: bool) -> None:
-        self.__is_masked = x
-
-    @property
-    def prob_thresh(self) -> float:
-        """Probability threshold for masking ancestry-specific SNPs."""
-        return self.__prob_thresh
-
-    @prob_thresh.setter
-    def prob_thresh(self, x: float) -> None:
-        self.__prob_thresh = x
-
-    @property
-    def average_strands(self) -> bool:
-        """If True, averages SNP values from both parents."""
-        return self.__average_strands
-
-    @average_strands.setter
-    def average_strands(self, x: bool) -> None:
-        self.__average_strands = x
-
-    @property
-    def groups_to_remove(self) -> dict:
-        """Groups to exclude from analysis."""
-        return self.__groups_to_remove
-
-    @groups_to_remove.setter
-    def groups_to_remove(self, x: dict) -> None:
-        self.__groups_to_remove = x
-
-    @property
-    def min_percent_snps(self) -> float:
-        """Minimum percentage of SNPs for inclusion."""
-        return self.__min_percent_snps
-
-    @min_percent_snps.setter
-    def min_percent_snps(self, x: float) -> None:
-        self.__min_percent_snps = x
-
-    @property
-    def is_weighted(self) -> bool:
-        """If weights are provided in the labels file."""
-        return self.__is_weighted
-
-    @is_weighted.setter
-    def is_weighted(self, x: bool) -> None:
-        self.__is_weighted = x
-
-    @property
-    def save_masks(self) -> bool:
-        """If True, saves the generated masked matrices."""
-        return self.__save_masks
-
-    @save_masks.setter
-    def save_masks(self, x: bool) -> None:
-        self.__save_masks = x
-
-    @property
-    def load_masks(self) -> bool:
-        """If True, loads pre-existing masked matrices."""
-        return self.__load_masks
-
-    @load_masks.setter
-    def load_masks(self, x: bool) -> None:
-        self.__load_masks = x
-
-    @property
-    def masks_file(self) -> str:
-        """Path to the `.npz` file for masks."""
-        return self.__masks_file
-
-    @masks_file.setter
-    def masks_file(self, x: str) -> None:
-        self.__masks_file = x
-
-    @property
-    def distance_type(self) -> str:
-        """Type of distance metric to use in MDS."""
-        return self.__distance_type
-
-    @distance_type.setter
-    def distance_type(self, x: str) -> None:
-        self.__distance_type = x
-
-    @property
-    def n_components(self) -> int:
-        """Number of dimensions for MDS."""
-        return self.__n_components
-
-    @n_components.setter
-    def n_components(self, x: int) -> None:
-        self.__n_components = x
-
-    @property
-    def plot_reg(self) -> bool:
-        """If True, create a scatter plot of MDS results."""
-        return self.__plot_reg
-
-    @plot_reg.setter
-    def plot_reg(self, x: bool) -> None:
-        self.__plot_reg = x
-
-    @property
-    def rsid_or_chrompos(self) -> int:
-        """Format indicator for SNP IDs."""
-        return self.__rsid_or_chrompos
-
-    @rsid_or_chrompos.setter
-    def rsid_or_chrompos(self, x: int) -> None:
-        self.__rsid_or_chrompos = x
-
-    @property
     def X_new_(self) -> Optional[np.ndarray]:
         """
         Retrieve `X_new_`.
 
         Returns:
-            numpy.ndarray: The transformed SNP data onto the `n_components` principal components.
+            **array of shape (n_samples, n_components):** 
+                The transformed SNP data projected onto the `n_components` principal components.
         """
         return self.__X_new_
 
@@ -628,19 +448,18 @@ class maasMDS:
             average_strands: Optional[bool] = None
         ) -> np.ndarray:
         """
-        Fit and transform SNP data in `snpobj` into a lower-dimensional space.
+        Fit the model to the SNP data stored in the provided `snpobj` and apply the dimensionality reduction on the same SNP data.
 
         Args:
             snpobj (SNPObject, optional): 
-                A SNPObject object instance.
+                A SNPObject instance.
             laiobj (LAIObject, optional): 
                 A LAIObject instance.
             labels_file (str, optional): 
-                Path to the labels file. It should be a `.tsv` file where the first column has header `indID` 
-                and contains the individual identifiers, and the second column has header `label` and contains 
-                the groups for all individuals. If `is_weighted=True`, a `weight` column with individual weights is required. 
-                Optionally, `combination` and `combination_weight` columns can specify sets of individuals to be combined 
-                into groups, with respective weights.
+                Path to the labels file in .tsv format. The first column, `indID`, contains the individual identifiers, and the second 
+                column, `label`, specifies the groups for all individuals. If `is_weighted=True`, a `weight` column with individual 
+                weights is required. Optionally, `combination` and `combination_weight` columns can specify sets of individuals to be 
+                combined into groups, with respective weights.
             ancestry (str, optional): 
                 Ancestry for which dimensionality reduction is to be performed. Ancestry counter starts at 0.
             average_strands (bool, optional): 
@@ -648,7 +467,8 @@ class maasMDS:
                 If None, defaults to `self.average_strands`.
 
         Returns:
-            numpy.ndarray: The transformed SNP data onto the `n_components` principal components, stored in `self.X_new_`.
+            **array of shape (n_samples, n_components):** 
+                The transformed SNP data projected onto the `n_components` principal components, stored in `self.X_new_`.
         """
         if snpobj is None:
             snpobj = self.snpobj
