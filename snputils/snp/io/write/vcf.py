@@ -29,7 +29,7 @@ class VCFWriter:
             "maternal/paternal" format.
         """
         self.__snpobj = snpobj
-        self.__filename = Path(self.__filename)
+        self.__filename = Path(filename)
         self.__n_jobs = n_jobs
         self.__phased = phased
 

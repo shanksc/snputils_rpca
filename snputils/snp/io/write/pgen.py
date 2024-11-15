@@ -27,7 +27,7 @@ class PGENWriter:
         TODO: add support for parallel writing by chromosome.
         """
         self.__snpobj = snpobj
-        self.__filename = Path(self.__filename)
+        self.__filename = Path(filename)
 
     def write(self):
         """
