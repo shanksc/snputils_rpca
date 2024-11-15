@@ -1,6 +1,5 @@
 import pytest
 import numpy as np
-from pathlib import Path
 from .utils import create_benchmark_test
 
 
