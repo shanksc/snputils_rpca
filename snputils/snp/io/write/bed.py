@@ -19,7 +19,7 @@ class BEDWriter:
     """
 
     def __init__(self, snpobj: SNPObject, filename: str):
-        self.__snpobj = snpobj
+        self.__snpobj = snpobj.copy()
         self.__filename = Path(filename)
 
     def write(self):
@@ -27,7 +27,7 @@ class BEDWriter:
 
         # Save .bed file
         if self.__filename.suffix != '.bed':
-            self.__filename = self.__filename.with_name(self.__filename.with_suffix('.bed'))
+            self.__filename = self.__filename.with_suffix('.bed')
 
         log.info(f"Writing .bed file: {self.__filename}")
 
