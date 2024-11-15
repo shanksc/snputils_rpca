@@ -1,0 +1,121 @@
+# This workflow handles testing, documentation, and publishing for the project.
+# It runs on pull requests to main and when releases are published.
+# The workflow ensures that:
+# 1. Tests pass before any other operations
+# 2. Documentation is built and deployed (deployment only on release)
+# 3. Package is published to PyPI (only on release and after docs are deployed)
+
+name: Test, Docs & Publish
+
+on:
+  # Run on pull requests to main branch to verify changes
+  pull_request:
+    branches:
+      - main
+  # Run when a new release is published to deploy docs and package
+  release:
+    types: [published]
+
+# Default permissions are read-only
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # Run tests on multiple Python versions to ensure compatibility
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.13"]
+    steps:
+      # Debug steps help track progress and diagnose issues
+      - name: Debug - Starting workflow
+        run: echo "Starting workflow"
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Debug - Code checked out
+        run: echo "Code checked out"
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Debug - Python setup completed
+        run: echo "Python setup completed"
+      - name: Install dependencies
+        run: |
+          echo "Installing dependencies"
+          python -m pip install --upgrade pip
+          python -m pip install setuptools tox tox-gh-actions
+      - name: Debug - Dependencies installed
+        run: echo "Dependencies installed"
+      - name: Run tests
+        run: |
+          echo "Running tests with tox"
+          python -m tox
+      - name: Debug - Tests completed
+        run: echo "Tests completed"
+
+  build-docs:
+    # Only build documentation after tests have passed
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Using latest Python version for documentation generation
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      # Install the package with docs dependencies
+      - run: pip install -e '.[docs]'
+      # Generate documentation using pdoc
+      # DOC_ALLOW_EXEC=1 allows executing code examples in docstrings
+      - run: DOC_ALLOW_EXEC=1 pdoc --docformat google -o docs/ snputils
+      # Upload documentation as an artifact for deployment
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+  deploy-docs:
+    # Deploy documentation to GitHub Pages only on release
+    # This job requires additional permissions for GitHub Pages
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: build-docs
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write      # Required for deploying to GitHub Pages
+      id-token: write   # Required for authentication
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  deploy-pypi:
+    # Deploy to PyPI only on release and after both tests pass and docs are deployed
+    # This ensures the documentation is available when the package is published
+    needs: [test, deploy-docs]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Use latest Python version for building and publishing
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      # Install build tools
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+      # Build package distributions (wheels and sdist)
+      - name: Build package
+        run: python -m build
+      # Publish to PyPI using API token
+      # Token must be configured in repository secrets
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
