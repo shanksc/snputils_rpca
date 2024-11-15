@@ -13,10 +13,10 @@ class LocalAncestryObject(AncestryObject):
     """
     def __init__(
         self,
-        haplotypes: List,
+        haplotypes: List[str],
         lai: np.ndarray,
-        samples: Optional[List] = None,
-        ancestry_map: Optional[Dict] = None,
+        samples: Optional[List[str]] = None,
+        ancestry_map: Optional[Dict[str, str]] = None,
         window_sizes: Optional[np.ndarray] = None,
         centimorgan_pos: Optional[np.ndarray] = None,
         chromosomes: Optional[np.ndarray] = None,
@@ -24,14 +24,14 @@ class LocalAncestryObject(AncestryObject):
     ) -> None:
         """
         Args:
-            haplotypes (list): 
-                A list of unique haplotype identifiers with a length of `n_haplotypes`.
+            haplotypes (list of str of length n_haplotypes): 
+                A list of unique haplotype identifiers.
             lai (array of shape (n_windows, n_haplotypes)): 
                 A 2D array containing local ancestry inference values, where each row represents a 
                 genomic window, and each column corresponds to a haplotype phase for each sample.
-            samples (list, optional): 
-                A list of unique sample identifiers with a length of `n_samples`.
-            ancestry_map (dict, optional): 
+            samples (list of str of length n_samples, optional): 
+                A list of unique sample identifiers.
+            ancestry_map (dict of str to str, optional): 
                 A dictionary mapping ancestry codes to region names.
             window_sizes (array of shape (n_windows,), optional): 
                 An array specifying the number of SNPs in each genomic window.
@@ -83,32 +83,33 @@ class LocalAncestryObject(AncestryObject):
             setattr(self, key, value)
         except AttributeError:
             raise KeyError(f'Invalid key: {key}')
-    
+
     @property
-    def haplotypes(self) -> List:
+    def haplotypes(self) -> List[str]:
         """
         Retrieve `haplotypes`.
 
         Returns:
-            List: A list of unique haplotype identifiers with a length of `n_samples*2`.
+            **list of length n_haplotypes:** A list of unique haplotype identifiers.
         """
         return self.__haplotypes
-    
+
     @haplotypes.setter
     def haplotypes(self, x):
         """
         Update `haplotypes`.
         """
         self.__haplotypes = x
-    
+
     @property
     def lai(self) -> np.ndarray:
         """
         Retrieve `lai`.
 
         Returns:
-            numpy.ndarray: A 2D array containing local ancestry inference values, where each row represents a 
-                           genomic window, and each column corresponds to a haplotype phase for each sample.
+            **array of shape (n_windows, n_haplotypes):** 
+                A 2D array containing local ancestry inference values, where each row represents a 
+                genomic window, and each column corresponds to a haplotype phase for each sample.
         """
         return self.__lai
 
@@ -120,12 +121,12 @@ class LocalAncestryObject(AncestryObject):
         self.__lai = x
 
     @property
-    def samples(self) -> Optional[List]:
+    def samples(self) -> Optional[List[str]]:
         """
         Retrieve `samples`.
 
         Returns:
-            List: A list of unique sample identifiers with a length of `n_samples`.
+            **list of str:** A list of unique sample identifiers.
         """
         return self.__samples
     
@@ -137,12 +138,12 @@ class LocalAncestryObject(AncestryObject):
         self.__samples = x
 
     @property
-    def ancestry_map(self) -> Optional[Dict]:
+    def ancestry_map(self) -> Optional[Dict[str, str]]:
         """
         Retrieve `ancestry_map`.
 
         Returns:
-            Dict: A dictionary mapping ancestry codes to region names.
+            **dict of str to str:** A dictionary mapping ancestry codes to region names.
         """
         return self.__ancestry_map
 
@@ -159,7 +160,8 @@ class LocalAncestryObject(AncestryObject):
         Retrieve `window_sizes`.
 
         Returns:
-            numpy.ndarray: An array specifying the number of SNPs in each genomic window.
+            **array of shape (n_windows,):** 
+                An array specifying the number of SNPs in each genomic window.
         """
         return self.__window_sizes
         
@@ -176,7 +178,8 @@ class LocalAncestryObject(AncestryObject):
         Retrieve `centimorgan_pos`.
 
         Returns:
-            numpy.ndarray: A 2D array containing the start and end centimorgan positions for each window.
+            **array of shape (n_windows, 2):** 
+                A 2D array containing the start and end centimorgan positions for each window.
         """
         return self.__centimorgan_pos
 
@@ -193,7 +196,8 @@ class LocalAncestryObject(AncestryObject):
         Retrieve `chromosomes`.
 
         Returns:
-            numpy.ndarray: An array with chromosome numbers corresponding to each genomic window.
+            **array of shape (n_windows,):** 
+                An array with chromosome numbers corresponding to each genomic window.
         """
         return self.__chromosomes
         
@@ -210,7 +214,8 @@ class LocalAncestryObject(AncestryObject):
         Retrieve `physical_pos`.
 
         Returns:
-            numpy.ndarray: A 2D array containing the start and end physical positions for each window.
+            **array of shape (n_windows, 2):** 
+                A 2D array containing the start and end physical positions for each window.
         """
         return self.__physical_pos
 
@@ -227,8 +232,8 @@ class LocalAncestryObject(AncestryObject):
         Retrieve `n_samples`.
 
         Returns:
-            int: The total number of samples. If `samples` is available, returns its length; 
-                 otherwise, calculates based on the number of `haplotypes` or `lai` array dimensions.
+            **int:** 
+                The total number of samples.
         """
         if self.__samples is not None:
             return len(self.__samples)
@@ -245,7 +250,7 @@ class LocalAncestryObject(AncestryObject):
         Retrieve `n_ancestries`.
 
         Returns:
-            int: The total number of unique ancestries.
+            **int:** The total number of unique ancestries.
         """
         return len(np.unique(self.__lai))
     
@@ -255,7 +260,7 @@ class LocalAncestryObject(AncestryObject):
         Retrieve `n_haplotypes`.
 
         Returns:
-            int: The total number of haplotypes.
+            **int:** The total number of haplotypes.
         """
         if self.__haplotypes is not None:
             return len(self.__haplotypes)
@@ -268,27 +273,28 @@ class LocalAncestryObject(AncestryObject):
         Retrieve `n_windows`.
 
         Returns:
-            int: The total number of genomic windows.
+            **int:** The total number of genomic windows.
         """
         return self.__lai.shape[0]
 
     def copy(self) -> 'LocalAncestryObject':
         """
-        Create and return a copy of the current `LocalAncestryObject` instance.
+        Create and return a copy of `self`.
 
         Returns:
-            LocalAncestryObject: 
+            **LocalAncestryObject:** 
                 A new instance of the current object.
         """
         return copy.copy(self)
 
-    def keys(self) -> List:
+    def keys(self) -> List[str]:
         """
-        Retrieve a list of public attribute names for this `LocalAncestryObject` instance.
+        Retrieve a list of public attribute names for `self`.
 
         Returns:
-            List: A list of attribute names, with internal name-mangling removed, 
-                  for easier reference to public attributes in the instance.
+            **list of str:** 
+                A list of attribute names, with internal name-mangling removed, 
+                for easier reference to public attributes in the instance.
         """
         return [attr.replace('_LocalAncestryObject__', '').replace('_AncestryObject__', '') for attr in vars(self)]
 
@@ -299,16 +305,18 @@ class LocalAncestryObject(AncestryObject):
             inplace: bool = False
         ) -> Optional['LocalAncestryObject']:
         """
-        Filter genomic windows in the `LocalAncestryObject` based on their indexes.
+        Filter genomic windows based on specified indexes. 
 
-        This method allows inclusion or exclusion of specific genomic windows from the
-        `LocalAncestryObject` by specifying their indexes. Negative indexes are supported
-        and follow NumPy's indexing conventions. It updates the `lai`, `chromosomes`, 
-        `centimorgan_pos`, and `physical_pos` attributes accordingly.
+        This method updates the `lai` attribute to include or exclude the specified genomic windows. 
+        Attributes such as `window_sizes`, `centimorgan_pos`, `chromosomes`, and `physical_pos` will also be 
+        updated accordingly if they are not None. The order of genomic windows is preserved.
+
+        Negative indexes are supported and follow 
+        [NumPy's indexing conventions](https://numpy.org/doc/stable/user/basics.indexing.html). 
 
         Args:
             indexes (int or array-like of int): 
-                Indexes of the windows to include or exclude. Can be a single integer or a
+                Index(es) of the windows to include or exclude. Can be a single integer or a
                 sequence of integers. Negative indexes are supported.
             include (bool, default=True): 
                 If True, includes only the specified windows. If False, excludes the specified
@@ -318,9 +326,9 @@ class LocalAncestryObject(AncestryObject):
                 the windows filtered. Default is False.
 
         Returns:
-            Optional[LocalAncestryObject]: Returns a new `LocalAncestryObject` with the specified 
-            windows filtered if `inplace=False`. If `inplace=True`, modifies the object in place and 
-            returns None.
+            **Optional[LocalAncestryObject]:** 
+                A new `LocalAncestryObject` with the specified windows filtered if `inplace=False`. 
+                If `inplace=True`, modifies `self` in place and returns None.
         """
         # Convert indexes to a NumPy array
         indexes = np.atleast_1d(indexes)
@@ -343,7 +351,8 @@ class LocalAncestryObject(AncestryObject):
         # Filter `lai`
         filtered_lai = self['lai'][mask, :] 
         
-        # Filter `chromosomes`, `centimorgan_pos`, and `physical_pos`, checking if they are None before filtering
+        # Filter `window_sizes`, `chromosomes`, `centimorgan_pos`, and `physical_pos`, checking if they are None before filtering
+        filtered_window_sizes = self['window_sizes'][mask] if self['window_sizes'] is not None else None
         filtered_chromosomes = self['chromosomes'][mask] if self['chromosomes'] is not None else None
         filtered_centimorgan_pos = self['centimorgan_pos'][mask, :] if self['centimorgan_pos'] is not None else None
         filtered_physical_pos = self['physical_pos'][mask, :] if self['physical_pos'] is not None else None
@@ -351,6 +360,8 @@ class LocalAncestryObject(AncestryObject):
         # Modify the original object if `inplace=True`, otherwise create and return a copy
         if inplace:
             self['lai'] = filtered_lai
+            if filtered_window_sizes is not None:
+                self['window_sizes'] = filtered_window_sizes
             if filtered_chromosomes is not None:
                 self['chromosomes'] = filtered_chromosomes
             if filtered_centimorgan_pos is not None:
@@ -361,6 +372,8 @@ class LocalAncestryObject(AncestryObject):
         else:
             laiobj = self.copy()
             laiobj['lai'] = filtered_lai
+            if filtered_window_sizes is not None:
+                laiobj['window_sizes'] = filtered_window_sizes
             if filtered_chromosomes is not None:
                 laiobj['chromosomes'] = filtered_chromosomes
             if filtered_centimorgan_pos is not None:
@@ -371,25 +384,30 @@ class LocalAncestryObject(AncestryObject):
 
     def filter_samples(
         self,
-        samples: Union[str, Sequence[str], np.ndarray, None] = None,
-        indexes: Union[int, Sequence[int], np.ndarray, None] = None,
+        samples: Optional[Union[str, Sequence[str], np.ndarray, None]] = None,
+        indexes: Optional[Union[int, Sequence[int], np.ndarray, None]] = None,
         include: bool = True,
         inplace: bool = False
     ) -> Optional['LocalAncestryObject']:
         """
-        Filter samples in the `LocalAncestryObject` based on sample names or indexes.
+        Filter samples based on specified names or indexes.
 
-        This method allows inclusion or exclusion of specific samples by their names,
-        indexes, or both. When both samples and indexes are provided, the union of
-        the specified samples is used. Negative indexes are supported and follow NumPy's indexing 
-        conventions. It updates the `lai`, `samples`, and `haplotypes` attributes accordingly.
+        This method updates the `lai`, `haplotypes`, and `samples` attributes to include or exclude the specified 
+        samples. Each sample is associated with two haplotypes, which are included or excluded together.
+        The order of the samples is preserved.
+
+        If both samples and indexes are provided, any sample matching either a name in samples or an index in 
+        indexes will be included or excluded.
+        
+        Negative indexes are supported and follow 
+        [NumPy's indexing conventions](https://numpy.org/doc/stable/user/basics.indexing.html).
 
         Args:
             samples (str or array_like of str, optional): 
-                 Names of the samples to include or exclude. Can be a single sample name or a
+                 Name(s) of the samples to include or exclude. Can be a single sample name or a
                  sequence of sample names. Default is None.
             indexes (int or array_like of int, optional):
-                Indexes of the samples to include or exclude. Can be a single index or a sequence
+                Index(es) of the samples to include or exclude. Can be a single index or a sequence
                 of indexes. Negative indexes are supported. Default is None.
             include (bool, default=True): 
                 If True, includes only the specified samples. If False, excludes the specified
@@ -399,8 +417,9 @@ class LocalAncestryObject(AncestryObject):
                 samples filtered. Default is False.
 
         Returns:
-            Optional[LocalAncestryObject]: A new LocalAncestryObject with the specified samples 
-            filtered if `inplace=False`. If inplace=True, modifies `self` in place and returns None.
+            **Optional[LocalAncestryObject]:** 
+                A new `LocalAncestryObject` with the specified samples filtered if `inplace=False`. 
+                If `inplace=True`, modifies `self` in place and returns None.
         """
         if samples is None and indexes is None:
             raise UserWarning("At least one of 'samples' or 'indexes' must be provided.")
@@ -491,7 +510,7 @@ class LocalAncestryObject(AncestryObject):
 
     def save(self, file: Union[str, pathlib.Path]) -> None:
         """
-        Save the data stored in the `LocalAncestryObject` instance to a `.msp` file.
+        Save the data stored in `self` to a `.msp` file.
 
         Args:
             file (str or pathlib.Path): 

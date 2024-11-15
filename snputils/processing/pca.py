@@ -33,28 +33,29 @@ def _svd_flip(u, v, u_based_decision=True):
 
 class TorchPCA:
     """
-    A class to perform Principal Component Analysis (PCA) using PyTorch tensors.
+    A class for GPU-based Principal Component Analysis (PCA) with PyTorch tensors.
     
     This implementation leverages GPU acceleration to achieve significant performance improvements,
     being up to 25 times faster than `sklearn.decomposition.PCA` when running on a compatible GPU.
     """
-    def __init__(self, n_components: int = None, fitting: str = 'reduced'):
+    def __init__(self, n_components: int = 2, fitting: str = 'reduced'):
         """
         Args:
-            n_components (int, optional): 
+            n_components (int, default=2): 
                 The number of principal components. If None, defaults to the minimum of `n_samples` and `n_snps`.
             fitting (str, default='reduced'): 
-                The fitting approach to use for the SVD computation. Options:
-                - 'full': Full Singular Value Decomposition (SVD).
-                - 'reduced': Economy SVD.
-                - 'lowrank': Low-rank approximation, which provides a faster but approximate solution.
-                Default to 'reduced'.
+                The fitting approach for the SVD computation. Options:
+                - `'full'`: Full Singular Value Decomposition (SVD).
+                - `'reduced'`: Economy SVD.
+                - `'lowrank'`: Low-rank approximation, which provides a faster but approximate solution.
+                Default is 'reduced'.
         """
         self.__n_components = n_components
         self.__fitting = fitting
         self.__n_components_ = None
         self.__components_ = None
         self.__mean_ = None
+        self.__X_new_ = None  # Store transformed SNP data
 
     def __getitem__(self, key):
         """
@@ -82,7 +83,7 @@ class TorchPCA:
         Retrieve `n_components`.
 
         Returns:
-            int: The number of components to keep. If None, defaults to the minimum of `n_samples` and `n_snps`.
+            **int:** The number of principal components.
         """
         return self.__n_components
     
@@ -99,7 +100,8 @@ class TorchPCA:
         Retrieve `fitting`.
 
         Returns:
-            str: The fitting approach to use for the SVD computation.
+            **str:** 
+                The fitting approach for the SVD computation.
         """
         return self.__fitting
 
@@ -116,10 +118,9 @@ class TorchPCA:
         Retrieve `n_components_`.
         
         Returns:
-            int: 
-                The effective number of components retained after fitting. 
-                It equals the parameter `n_components`, or the lesser value of 
-                `n_snps` and `n_samples` if `n_components` is `None`.
+            **int:** 
+                The effective number of components retained after fitting, 
+                calculated as `min(self.n_components, min(n_samples, n_snps))`.
         """
         return self.__n_components_
 
@@ -136,9 +137,8 @@ class TorchPCA:
         Retrieve `components_`.
         
         Returns:
-            torch.Tensor: 
-                The matrix of principal components obtained after fitting.
-                Each row represents a principal component vector.
+            **tensor of shape (n_components_, n_snps):** 
+                Matrix of principal components, where each row is a principal component vector.
         """
         return self.__components_
 
@@ -155,8 +155,8 @@ class TorchPCA:
         Retrieve `mean_`.
 
         Returns:
-            torch.Tensor: 
-                The per-feature mean vector of the input data used for centering.
+            **tensor of shape (n_snps,):** 
+                Per-feature mean vector of the input data used for centering.
         """
         return self.__mean_
 
@@ -167,13 +167,31 @@ class TorchPCA:
         """
         self.__mean_ = x
 
-    def copy(self) -> 'TorchPCA':
+    @property
+    def X_new_(self) -> Optional[Union[torch.Tensor, np.ndarray]]:
         """
-        Create and return a copy of the current `TorchPCA` instance.
+        Retrieve `X_new_`.
 
         Returns:
-            TorchPCA: 
-            A new instance of the current object.
+            **tensor of shape (n_samples, n_components_):** 
+                The transformed SNP data projected onto the `n_components_` principal components.
+        """
+        return self.__X_new_
+
+    @X_new_.setter
+    def X_new_(self, x: torch.Tensor) -> None:
+        """
+        Update `X_new_`.
+        """
+        self.__X_new_ = x
+
+    def copy(self) -> 'TorchPCA':
+        """
+        Create and return a copy of `self`.
+
+        Returns:
+            **TorchPCA:** 
+                A new instance of the current object.
         """
         return copy.copy(self)
 
@@ -183,8 +201,7 @@ class TorchPCA:
 
         Args:
             X (tensor of shape (n_samples, n_snps)): 
-                The input SNP data used for fitting the model, where `n_samples` is the number of 
-                samples and `n_snps` is the number of features.
+                Input SNP data used for fitting the model.
 
         Returns:
             Tuple: U, S, and Vt matrices from the SVD, where:
@@ -225,60 +242,66 @@ class TorchPCA:
 
     def fit(self, X: torch.Tensor) -> 'TorchPCA':
         """
-        Fit the model with `X`.
+        Fit the model to the input SNP data.
 
         Args:
             X (tensor of shape (n_samples, n_snps)): 
-                The input SNP data used for fitting the model, where `n_samples` is the number of 
-                samples and `n_snps` is the number of features.
+                The SNP data matrix to fit the model.
 
         Returns:
-            TorchPCA: 
-                The fitted `TorchPCA` object instance.
+            **TorchPCA:** 
+                The fitted instance of `self`.
         """
         self._fit(X)
         return self
 
     def transform(self, X: torch.Tensor) -> torch.Tensor:
         """
-        Apply dimensionality reduction on `X`.
+        Apply dimensionality reduction to the input SNP data using the fitted model.
 
         Args:
             X (tensor of shape (n_samples, n_snps)): 
-                The data to transform, where `n_samples` is the number of samples and `n_snps` is the number of features.
+                The SNP data matrix to be transformed.
 
         Returns:
-            torch.Tensor of shape (n_samples, n_components_): 
-                The transformed SNP data onto the `n_components_` principal components.
+            **tensor of shape (n_samples, n_components_):** 
+                The transformed SNP data projected onto the `n_components_` principal components, 
+                stored in `self.X_new_`.
         """
         if self.components_ is None or self.mean_ is None:
             raise ValueError("The PCA model must be fitted before calling `transform`.")
         
-        return torch.matmul(X - self.mean_, self.components_.T)
+        self.X_new_ = torch.matmul(X - self.mean_, self.components_.T)
+        return self.X_new_
 
     def fit_transform(self, X):
         """
-        Fit the model with `X` and apply the dimensionality reduction on `X`.
+        Fit the model to the SNP data and apply dimensionality reduction on the same SNP data.
 
         Args:
             X (tensor of shape n_samples, n_snps): 
-                The input SNP data used for fitting the model, where `n_samples` is the number of 
-                samples and `n_snps` is the number of features.
+                The SNP data matrix used for both fitting and transformation.
 
         Returns:
-            torch.Tensor of shape (n_samples, n_components_): 
-                The transformed SNP data onto the `n_components_` principal components.
+            **tensor of shape (n_samples, n_components_):** 
+                The transformed SNP data projected onto the `n_components_` principal components, 
+                stored in `self.X_new_`.
         """
         U, S, _ = self._fit(X)
-        return U * S.unsqueeze(0)
+        self.X_new_ = U * S.unsqueeze(0)
+        return self.X_new_
 
 
 class PCA:
     """
-    A class to perform Principal Component Analysis (PCA) on SNP data using the `SNPObject` and 
-    either `sklearn.decomposition.PCA` or a `TorchPCA` implementation, allowing for efficient GPU-based PCA.
+    A class for Principal Component Analysis (PCA) on SNP data stored in a `snputils.snp.genobj.SNPObject`. 
+    This class employs either 
+    [sklearn.decomposition.PCA](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html) 
+    or the custom `TorchPCA` implementation for efficient GPU-accelerated analysis.
     
-    Supports both separate and average strand handling.
+    The PCA class supports both separate and averaged strand processing for SNP data. If the `snpobj` parameter is 
+    provided during instantiation, the `fit_transform` method will be automatically called, 
+    applying PCA to transform the data according to the selected configuration.
     """
     def __init__(
         self, 
@@ -294,17 +317,18 @@ class PCA:
         """
         Args:
             snpobj (SNPObject, optional): 
-                A SNPObject object instance.
+                A SNPObject instance.
             backend (str, default='pytorch'): 
-                The backend to use ('sklearn' or 'pytorch'). Defaults to 'sklearn'.
+                The backend to use (`'sklearn'` or `'pytorch'`). Default is 'pytorch'.
             n_components (int, default=2): 
-                The number of principal components. Defaults to 2.
+                The number of principal components. Default is 2.
             fitting (str, default='full'): 
                 The fitting approach to use for the SVD computation (only for `backend='pytorch'`). 
-                - 'full': Full Singular Value Decomposition (SVD).
-                - 'lowrank': Low-rank approximation, which provides a faster but approximate solution.
+                - `'full'`: Full Singular Value Decomposition (SVD).
+                - `'lowrank'`: Low-rank approximation, which provides a faster but approximate solution.
+                Default is 'full'.
             device (str, default='cpu'): 
-                Device to use ('CPU', 'GPU', 'cuda', or 'cuda:<index>'). Defaults to 'cpu'.
+                Device to use (`'cpu'`, `'gpu'`, `'cuda'`, or `'cuda:<index>'`). Default is 'cpu'.
             average_strands (bool, default=True): 
                 True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
             samples_subset (int or list of int, optional): 
@@ -322,6 +346,9 @@ class PCA:
         self.__snps_subset = snps_subset
         self.__X_ = None
         self.__X_new_ = None  # Store transformed SNP data
+        self.__n_components_ = None
+        self.__components_ = None
+        self.__mean_ = None
 
         # Initialize PCA backend
         if self.backend == "pytorch":
@@ -335,33 +362,13 @@ class PCA:
         if self.snpobj is not None:
             self.fit_transform(snpobj)
 
-    def __getitem__(self, key):
-        """
-        To access an attribute of the class using the square bracket notation,
-        similar to a dictionary.
-        """
-        try:
-            return getattr(self, key)
-        except AttributeError:
-            raise KeyError(f'Invalid key: {key}')
-
-    def __setitem__(self, key, value):
-        """
-        To set an attribute of the class using the square bracket notation,
-        similar to a dictionary.
-        """
-        try:
-            setattr(self, key, value)
-        except AttributeError:
-            raise KeyError(f'Invalid key: {key}')
-
     @property
     def snpobj(self) -> Optional['SNPObject']:
         """
         Retrieve `snpobj`.
 
         Returns:
-            SNPObject: A SNPObject object instance.
+            **SNPObject:** A SNPObject instance.
         """
         return self.__snpobj
 
@@ -378,7 +385,7 @@ class PCA:
         Retrieve `backend`.
         
         Returns:
-            str: The backend to use ('sklearn' or 'pytorch').
+            **str:** The backend to use (`'sklearn'` or `'pytorch'`).
         """
         return self.__backend
 
@@ -395,7 +402,7 @@ class PCA:
         Retrieve `n_components`.
         
         Returns:
-            int: The number of principal components.
+            **int:** The number of principal components.
         """
         return self.__n_components
     
@@ -412,7 +419,10 @@ class PCA:
         Retrieve `fitting`.
 
         Returns:
-            str: The fitting approach to use for the SVD computation.
+            **str:** 
+                The fitting approach to use for the SVD computation (only for `backend='pytorch'`). 
+                - `'full'`: Full Singular Value Decomposition (SVD).
+                - `'lowrank'`: Low-rank approximation, which provides a faster but approximate solution.
         """
         return self.__fitting
 
@@ -429,7 +439,7 @@ class PCA:
         Retrieve `device`.
 
         Returns:
-            torch.device: Device to use ('CPU', 'GPU', 'cuda', or 'cuda:<index>').
+            **torch.device:** Device to use (`'cpu'`, `'gpu'`, `'cuda'`, or `'cuda:<index>'`).
         """
         return self.__device
 
@@ -446,7 +456,8 @@ class PCA:
         Retrieve `average_strands`.
 
         Returns:
-            bool: True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
+            **bool:** 
+                True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
         """
         return self.__average_strands
 
@@ -458,38 +469,94 @@ class PCA:
         self.__average_strands = x
 
     @property
-    def samples_subset(self) -> Optional[Union[int, List]]:
+    def samples_subset(self) -> Optional[Union[int, List[int]]]:
         """
         Retrieve `samples_subset`.
 
         Returns:
-            int or list of int: Subset of samples to include, as an integer for the first samples or a list of sample indices.
+            **int or list of int:** 
+                Subset of samples to include, as an integer for the first samples or a list of sample indices.
         """
         return self.__samples_subset
 
     @samples_subset.setter
-    def samples_subset(self, x: Optional[Union[int, List]]) -> None:
+    def samples_subset(self, x: Optional[Union[int, List[int]]]) -> None:
         """
         Update `samples_subset`.
         """
         self.__samples_subset = x
 
     @property
-    def snps_subset(self) -> Optional[Union[int, List]]:
+    def snps_subset(self) -> Optional[Union[int, List[int]]]:
         """
         Retrieve `snps_subset`.
 
         Returns:
-            int or list of int: Subset of SNPs to include, as an integer for the first SNPs or a list of SNP indices.
+            **int or list of int:** Subset of SNPs to include, as an integer for the first SNPs or a list of SNP indices.
         """
         return self.__snps_subset
 
     @snps_subset.setter
-    def snps_subset(self, x: Optional[Union[int, List]]) -> None:
+    def snps_subset(self, x: Optional[Union[int, List[int]]]) -> None:
         """
         Update `snps_subset`.
         """
         self.__snps_subset = x
+
+    @property
+    def n_components_(self) -> Optional[int]:
+        """
+        Retrieve `n_components_`.
+
+        Returns:
+            **int:** 
+                The effective number of components retained after fitting, 
+                calculated as `min(self.n_components, min(n_samples, n_snps))`.
+        """
+        return self.__n_components_
+
+    @n_components_.setter
+    def n_components_(self, x: int) -> None:
+        """
+        Update `n_components_`.
+        """
+        self.__n_components_ = x
+
+    @property
+    def components_(self) -> Optional[Union[torch.Tensor, np.ndarray]]:
+        """
+        Retrieve `components_`.
+
+        Returns:
+            **tensor or array of shape (n_components_, n_snps):** 
+                Matrix of principal components, where each row is a principal component vector.
+        """
+        return self.__components_
+
+    @components_.setter
+    def components_(self, x: Union[torch.Tensor, np.ndarray]) -> None:
+        """
+        Update `components_`.
+        """
+        self.__components_ = x
+
+    @property
+    def mean_(self) -> Optional[Union[torch.Tensor, np.ndarray]]:
+        """
+        Retrieve `mean_`.
+
+        Returns:
+            **tensor or array of shape (n_snps,):** 
+                Per-feature mean vector of the input data used for centering.
+        """
+        return self.__mean_
+
+    @mean_.setter
+    def mean_(self, x: Union[torch.Tensor, np.ndarray]) -> None:
+        """
+        Update `mean_`.
+        """
+        self.__mean_ = x
 
     @property
     def X_(self) -> Optional[Union[torch.Tensor, np.ndarray]]:
@@ -497,14 +564,13 @@ class PCA:
         Retrieve `X_`.
 
         Returns:
-            torch.Tensor or numpy.ndarray of shape (n_samples, n_snps): 
-                The input SNP data used for fitting the model, where `n_samples` is the number of 
-                samples and `n_snps` is the number of features.
+            **tensor or array of shape (n_samples, n_snps):** 
+                The SNP data matrix used to fit the model.
         """
         return self.__X_
 
     @X_.setter
-    def X_(self, x: torch.Tensor) -> None:
+    def X_(self, x: Union[torch.Tensor, np.ndarray]) -> None:
         """
         Update `X_`.
         """
@@ -516,12 +582,13 @@ class PCA:
         Retrieve `X_new_`.
 
         Returns:
-            torch.Tensor or numpy.ndarray: The transformed SNP data onto the `n_components` principal components.
+            **tensor or array of shape (n_samples, n_components_):** 
+                The transformed SNP data projected onto the `n_components_` principal components.
         """
         return self.__X_new_
 
     @X_new_.setter
-    def X_new_(self, x: torch.Tensor) -> None:
+    def X_new_(self, x: Union[torch.Tensor, np.ndarray]) -> None:
         """
         Update `X_new_`.
         """
@@ -529,11 +596,11 @@ class PCA:
 
     def copy(self) -> 'PCA':
         """
-        Create and return a copy of the current `PCA` instance.
+        Create and return a copy of `self`.
 
         Returns:
-            PCA: 
-            A new instance of the current object.
+            **PCA:** 
+                A new instance of the current object.
         """
         return copy.copy(self)
 
@@ -641,18 +708,18 @@ class PCA:
         return X
 
     def fit(
-        self, 
-        snpobj: Optional['SNPObject'] = None, 
-        average_strands: Optional[bool] = None, 
-        samples_subset: Optional[Union[int, List]] = None, 
-        snps_subset: Optional[Union[int, List]] = None
-    ) -> 'PCA':
+            self, 
+            snpobj: Optional['SNPObject'] = None, 
+            average_strands: Optional[bool] = None, 
+            samples_subset: Optional[Union[int, List]] = None, 
+            snps_subset: Optional[Union[int, List]] = None
+        ) -> 'PCA':
         """
-        Fit the model with the SNP data in `snpobj`.
+        Fit the model to the input SNP data stored in the provided `snpobj`.
 
         Args:
             snpobj (SNPObject, optional): 
-                A SNPObject object instance. If None, defaults to `self.snpobj`.
+                A SNPObject instance. If None, defaults to `self.snpobj`.
             average_strands (bool, optional): 
                 True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
                 If None, defaults to `self.average_strands`.
@@ -664,25 +731,32 @@ class PCA:
                 If None, defaults to `self.snps_subset`.
 
         Returns:
-            PCA: The fitted PCA object instance.
+            **PCA:** 
+                The fitted instance of `self`.
         """
         self.X_ = self._get_data_from_snpobj(snpobj, average_strands, samples_subset, snps_subset)
         self.pca.fit(self.X_)
+
+        # Update attributes based on the fitted model
+        self.n_components_ = self.pca.n_components_
+        self.components_ = self.pca.components_
+        self.mean_ = self.pca.mean_
+        
         return self
-    
+
     def transform(
-        self, 
-        snpobj: Optional['SNPObject'] = None, 
-        average_strands: Optional[bool] = None, 
-        samples_subset: Optional[Union[int, List]] = None, 
-        snps_subset: Optional[Union[int, List]] = None
-    ):
+            self, 
+            snpobj: Optional['SNPObject'] = None, 
+            average_strands: Optional[bool] = None, 
+            samples_subset: Optional[Union[int, List]] = None, 
+            snps_subset: Optional[Union[int, List]] = None
+        ):
         """
-        Apply dimensionality reduction on SNP data in `snpobj`.
+        Apply dimensionality reduction to the input SNP data stored in the provided `snpobj` using the fitted model.
 
         Args:
             snpobj (SNPObject, optional): 
-                A SNPObject object instance. If None, defaults to `self.snpobj`.
+                A SNPObject instance. If None, defaults to `self.snpobj`.
             average_strands (bool, optional): 
                 True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
                 If None, defaults to `self.average_strands`.
@@ -694,26 +768,26 @@ class PCA:
                 If None, defaults to `self.snps_subset`.
 
         Returns:
-            torch.Tensor or numpy.ndarray: The transformed SNP data onto the `n_components` principal components.
+            **tensor or array of shape (n_samples, n_components):**
+                The transformed SNP data projected onto the `n_components_` principal components,
+                stored in `self.X_new_`.
         """
-        if self.X_ is None:
+        # Retrieve or update the data to transform
+        if snpobj is not None or self.X_ is None:
             self.X_ = self._get_data_from_snpobj(snpobj, average_strands, samples_subset, snps_subset)
-        self.X_new_ = self.pca.transform(self.X_)
-        return self.X_new_
-    
-    def fit_transform(
-        self, 
-        snpobj: Optional['SNPObject'] = None, 
-        average_strands: Optional[bool] = None, 
-        samples_subset: Optional[Union[int, List]] = None, 
-        snps_subset: Optional[Union[int, List]] = None
-    ):
+        
+        # Apply transformation using the fitted PCA model
+        return self.pca.transform(self.X_)
+
+    def fit_transform(self, snpobj: Optional['SNPObject'] = None, average_strands: Optional[bool] = None, 
+                      samples_subset: Optional[Union[int, List]] = None, snps_subset: Optional[Union[int, List]] = None):
         """
-        Fit the model with SNP data in `snpobj` and apply the dimensionality reduction on SNP data in `snpobj`.
+        Fit the model to the SNP data stored in the provided `snpobj` and apply the dimensionality reduction 
+        on the same SNP data.
 
         Args:
             snpobj (SNPObject, optional): 
-                A SNPObject object instance. If None, defaults to `self.snpobj`.
+                A SNPObject instance. If None, defaults to `self.snpobj`.
             average_strands (bool, optional): 
                 True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
                 If None, defaults to `self.average_strands`.
@@ -725,9 +799,16 @@ class PCA:
                 If None, defaults to `self.snps_subset`.
 
         Returns:
-            torch.Tensor or numpy.ndarray: The transformed SNP data onto the `n_components` principal components, 
-            stored in `self.X_new_`.
+            **tensor or array of shape (n_samples, n_components):** 
+                The transformed SNP data projected onto the `n_components_` principal components,
+                stored in `self.X_new_`.
         """
         self.X_ = self._get_data_from_snpobj(snpobj, average_strands, samples_subset, snps_subset)
         self.X_new_ = self.pca.fit_transform(self.X_)
+
+        # Update attributes based on the fitted model
+        self.n_components_ = self.pca.n_components_
+        self.components_ = self.pca.components_
+        self.mean_ = self.pca.mean_
+
         return self.X_new_
