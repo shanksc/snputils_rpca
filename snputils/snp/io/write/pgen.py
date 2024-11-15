@@ -92,7 +92,7 @@ class PGENWriter:
             flat_genotypes = self.__snpobj.__calldata_gt
 
         with pg.PgenWriter(
-            f"{self.__filename}.pgen".encode("utf-8"),
+            filename=str(self.__filename).encode('utf-8'),
             sample_ct=num_samples,
             variant_ct=num_variants,
             hardcall_phase_present=phased,

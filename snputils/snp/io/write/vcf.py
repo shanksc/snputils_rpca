@@ -104,9 +104,9 @@ class VCFWriter:
 
         # Format output file
         if chrom == "All":
-            file = self.__filename + self.__file_extension
+            file = self.__filename.with_suffix(self.__file_extension)
         else:
-            file = f'{self.__filename}_{chrom}{self.__file_extension}'
+            file = self.__filename.parent / f"{self.__filename.stem}_{chrom}{self.__file_extension}"
 
         # Write header
         with open(file, "w") as f:

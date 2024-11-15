@@ -27,7 +27,7 @@ class BEDWriter:
 
         # Save .bed file
         if self.__filename.suffix != '.bed':
-            self.__filename = self.__filename.with_name(self.__filename.name + '.bed')
+            self.__filename = self.__filename.with_name(self.__filename.with_suffix('.bed'))
 
         log.info(f"Writing .bed file: {self.__filename}")
 
@@ -40,7 +40,7 @@ class BEDWriter:
         samples, variants = self.__snpobj.calldata_gt.shape
 
         # Define the PgenWriter to save the data
-        data_save = pg.PgenWriter(filename=self.__filename.encode('utf-8'),
+        data_save = pg.PgenWriter(filename=str(self.__filename).encode('utf-8'),
                                   sample_ct=samples,
                                   variant_ct=variants,
                                   nonref_flags=True,
@@ -70,7 +70,7 @@ class BEDWriter:
         fam_file['fid'] = self.__snpobj.samples
 
         # Save .fam file
-        fam_file.to_csv(self.__filename + '.fam', sep='\t', index=False, header=False)
+        fam_file.to_csv(self.__filename.with_suffix('.fam'), sep='\t', index=False, header=False)
         log.info(f"Finished writing .fam file: {self.__filename}")
 
         # Save .bim file
@@ -87,5 +87,5 @@ class BEDWriter:
         bim_file['a1'] = self.__snpobj.variants_ref
 
         # Save .bim file
-        bim_file.to_csv(self.__filename + '.bim', sep='\t', index=False, header=False)
+        bim_file.to_csv(self.__filename.with_suffix('.bim'), sep='\t', index=False, header=False)
         log.info(f"Finished writing .bim file: {self.__filename}")
