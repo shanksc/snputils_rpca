@@ -1,15 +1,13 @@
+import pathlib
 import os
 import time
 import gc
 import logging
 import logging.config
 import numpy as np
-import pandas as pd
 import copy
-from typing import Optional
+from typing import Optional, Dict, List, Union
 from sklearn.decomposition import TruncatedSVD
-import plotly_express as px
-import plotly
 
 from snputils.snp.genobj.snpobj import SNPObject
 from snputils.ancestry.genobj.local import LocalAncestryObject
@@ -19,9 +17,10 @@ from ._utils.iterative_svd import IterativeSVD
 
 class mdPCA:
     """
-    A class for performing missing data principal component analysis (mdPCA).
+    A class for missing data principal component analysis (mdPCA).
 
-    If `snpobj`, `laiobj`, `labels_file`, and `ancestry` parameters are all provided during instantiation, 
+    This class supports both separate and averaged strand processing for SNP data. If the `snpobj`, 
+    `laiobj`, `labels_file`, and `ancestry` parameters are all provided during instantiation, 
     the `fit_transform` method will be automatically called, applying the specified mdPCA method to transform 
     the data upon instantiation.
     """
@@ -36,13 +35,12 @@ class mdPCA:
         prob_thresh: float = 0,
         average_strands: bool = False,
         is_weighted: bool = False,
-        groups_to_remove: dict = {},
+        groups_to_remove: Dict[int, List[str]] = {},
         min_percent_snps: float = 4,
         save_masks: bool = False,
         load_masks: bool = False,
-        masks_file: str = 'masks.npz',
-        output_file: str = 'output.tsv',
-        scatterplot_file: str = 'scatter_plot.html',
+        masks_file: Union[str, pathlib.Path] = 'masks.npz',
+        output_file: Union[str, pathlib.Path] = 'output.tsv',
         covariance_matrix_file: Optional[str] = None,
         n_components: int = 2,
         rsid_or_chrompos: int = 2,
@@ -52,35 +50,34 @@ class mdPCA:
         Args:
             method (str, default='weighted_cov_pca'): 
                 The PCA method to use for dimensionality reduction. Options include:
-                - 'weighted_cov_pca': 
+                - `'weighted_cov_pca'`: 
                     Simple covariance-based PCA, weighted by sample strengths.
-                - 'regularized_optimization_ils': 
+                - `'regularized_optimization_ils'`: 
                     Regularized optimization followed by iterative, weighted (via the strengths) least squares projection of 
                     missing samples using the original covariance matrix (considering only relevant elements not missing in 
                     the original covariance matrix for those samples).
-                - 'cov_matrix_imputation': 
+                - `'cov_matrix_imputation'`: 
                     Eigen-decomposition of the covariance matrix after first imputing the covariance matrix missing values 
                     using the Iterative SVD imputation method.
-                - 'cov_matrix_imputation_ils': 
+                - `'cov_matrix_imputation_ils'`: 
                     The method of 'cov_matrix_imputation', but where afterwards missing samples are re-projected onto the space 
                     given by 'cov_matrix_imputation' using the same iterative method on the original covariance matrix just 
                     as done in 'regularized_optimization_ils'.
-                - 'nonmissing_pca_ils': 
+                - `'nonmissing_pca_ils'`: 
                     The method of 'weighted_cov_pca' on the non-missing samples, followed by the projection of missing samples onto 
                     the space given by 'weighted_cov_pca' using the same iterative method on the original covariance matrix just as 
                     done in 'regularized_optimization_ils'.
             snpobj (SNPObject, optional): 
-                A SNPObject object instance.
+                A SNPObject instance.
             laiobj (LAIObject, optional): 
                 A LAIObject instance.
             labels_file (str, optional): 
-                Path to the labels file. It should be a `.tsv` file where the first column has header `indID` 
-                and contains the individual identifiers, and the second column has header `label` and contains 
-                the groups for all individuals. If `is_weighted=True`, a `weight` column with individual weights is required. 
-                Optionally, `combination` and `combination_weight` columns can specify sets of individuals to be combined 
-                into groups, with respective weights.
+                Path to the labels file in .tsv format. The first column, `indID`, contains the individual identifiers, and the second 
+                column, `label`, specifies the groups for all individuals. If `is_weighted=True`, a `weight` column with individual 
+                weights is required. Optionally, `combination` and `combination_weight` columns can specify sets of individuals to be 
+                combined into groups, with respective weights.
             ancestry (str, optional): 
-                Ancestry for which dimensionality reduction is to be performed. Ancestry counter starts at 0.
+                Ancestry for which dimensionality reduction is to be performed. Ancestry counter starts at `0`.
             is_masked (bool, default=True): 
                 True if an ancestry file is passed for ancestry-specific masking, or False otherwise.
             prob_thresh (float, default=0): 
@@ -89,23 +86,21 @@ class mdPCA:
                 True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
             is_weighted (bool, default=False): 
                 True if weights are provided in the labels file, or False otherwise.
-            groups_to_remove (dict, default={}): 
+            groups_to_remove (dict of int to list of str, default={}): 
                 Dictionary specifying groups to exclude from analysis. Keys are array numbers, and values are 
                 lists of groups to remove for each array.
                 Example: `{1: ['group1', 'group2'], 2: [], 3: ['group3']}`.
             min_percent_snps (float, default=4): 
-                Minimum percentage of SNPs to be known in an individual for an individual to be included in the analysis. 
+                Minimum percentage of SNPs that must be known for an individual to be included in the analysis.
                 All individuals with fewer percent of unmasked SNPs than this threshold will be excluded.
             save_masks (bool, default=False): 
                 True if the masked matrices are to be saved in a `.npz` file, or False otherwise.
             load_masks (bool, default=False): 
-                True if the masked matrices are to be loaded from pre-existing `.npz` file (`masks_file`), or False otherwise.
-            masks_file (str, default='masks.npz'): 
+                True if the masked matrices are to be loaded from a pre-existing `.npz` file specified by `masks_file`, or False otherwise.
+            masks_file (str or pathlib.Path, default='masks.npz'): 
                 Path to the `.npz` file used for saving/loading masked matrices.
-            output_file (str, default='output.tsv'): 
+            output_file (str or pathlib.Path, default='output.tsv'): 
                 Path to the output `.tsv` file where mdPCA results are saved.
-            scatterplot_file (str, default='scatter_plot.html'): 
-                Path to save the mdPCA scatter plot in HTML format.
             covariance_matrix_file (str, optional): 
                 Path to save the covariance matrix file in `.npy` format. If None, the covariance matrix is not saved. Default is None.
             n_components (int, default=2): 
@@ -113,7 +108,7 @@ class mdPCA:
             rsid_or_chrompos (int, default=2): 
                 Format indicator for SNP IDs in the SNP data. Use 1 for `rsID` format or 2 for `chromosome_position`.
             percent_vals_masked (float, default=0): 
-                Percentage of values in the covariance matrix to be masked and then imputed, if `method` is 
+                Percentage of values in the covariance matrix to be masked and then imputed. Only applicable if `method` is 
                 `'cov_matrix_imputation'` or `'cov_matrix_imputation_ils'`.
         """
         self.__snpobj = snpobj
@@ -131,7 +126,6 @@ class mdPCA:
         self.__load_masks = load_masks
         self.__masks_file = masks_file
         self.__output_file = output_file
-        self.__scatterplot_file = scatterplot_file
         self.__covariance_matrix_file = covariance_matrix_file
         self.__n_components = n_components
         self.__rsid_or_chrompos = rsid_or_chrompos
@@ -163,21 +157,38 @@ class mdPCA:
             raise KeyError(f'Invalid key: {key}')
 
     @property
+    def method(self) -> str:
+        """
+        Retrieve `method`.
+        
+        Returns:
+            **str:** The PCA method to use for dimensionality reduction.
+        """
+        return self.__method
+
+    @method.setter
+    def method(self, x: str) -> None:
+        """
+        Update `method`.
+        """
+        self.__method = x
+
+    @property
     def snpobj(self) -> Optional['SNPObject']:
         """
         Retrieve `snpobj`.
         
         Returns:
-            SNPObject: A SNPObject object instance.
+            **SNPObject:** A SNPObject instance.
         """
         return self.__snpobj
 
     @snpobj.setter
-    def snpobj(self, value: 'SNPObject') -> None:
+    def snpobj(self, x: 'SNPObject') -> None:
         """
         Update `snpobj`.
         """
-        self.__snpobj = value
+        self.__snpobj = x
 
     @property
     def laiobj(self) -> Optional['LocalAncestryObject']:
@@ -185,16 +196,16 @@ class mdPCA:
         Retrieve `laiobj`.
         
         Returns:
-            LocalAncestryObject: A LocalAncestryObject instance.
+            **LocalAncestryObject:** A LocalAncestryObject instance.
         """
         return self.__laiobj
 
     @laiobj.setter
-    def laiobj(self, value: 'LocalAncestryObject') -> None:
+    def laiobj(self, x: 'LocalAncestryObject') -> None:
         """
         Update `laiobj`.
         """
-        self.__laiobj = value
+        self.__laiobj = x
 
     @property
     def labels_file(self) -> Optional[str]:
@@ -202,16 +213,16 @@ class mdPCA:
         Retrieve `labels_file`.
         
         Returns:
-            str: Path to the labels file in `.tsv` format.
+            **str:** Path to the labels file in `.tsv` format.
         """
         return self.__labels_file
 
     @labels_file.setter
-    def labels_file(self, value: str) -> None:
+    def labels_file(self, x: str) -> None:
         """
         Update `labels_file`.
         """
-        self.__labels_file = value
+        self.__labels_file = x
 
     @property
     def ancestry(self) -> Optional[str]:
@@ -219,33 +230,16 @@ class mdPCA:
         Retrieve `ancestry`.
         
         Returns:
-            str: Ancestry for which dimensionality reduction is to be performed. Ancestry counter starts at 0.
+            **str:** Ancestry for which dimensionality reduction is to be performed. Ancestry counter starts at 0.
         """
         return self.__ancestry
 
     @ancestry.setter
-    def ancestry(self, value: str) -> None:
+    def ancestry(self, x: str) -> None:
         """
         Update `ancestry`.
         """
-        self.__ancestry = value
-
-    @property
-    def method(self) -> str:
-        """
-        Retrieve `method`.
-        
-        Returns:
-            str: The PCA method to use for dimensionality reduction.
-        """
-        return self.__method
-
-    @method.setter
-    def method(self, value: str) -> None:
-        """
-        Update `method`.
-        """
-        self.__method = value
+        self.__ancestry = x
 
     @property
     def is_masked(self) -> bool:
@@ -253,16 +247,16 @@ class mdPCA:
         Retrieve `is_masked`.
         
         Returns:
-            bool: True if an ancestry file is passed for ancestry-specific masking, or False otherwise.
+            **bool:** True if an ancestry file is passed for ancestry-specific masking, or False otherwise.
         """
         return self.__is_masked
 
     @is_masked.setter
-    def is_masked(self, value: bool) -> None:
+    def is_masked(self, x: bool) -> None:
         """
         Update `is_masked`.
         """
-        self.__is_masked = value
+        self.__is_masked = x
 
     @property
     def prob_thresh(self) -> float:
@@ -270,15 +264,15 @@ class mdPCA:
         Retrieve `prob_thresh`.
         
         Returns:
-            float: Minimum probability threshold for a SNP to belong to an ancestry.
+            **float:** Minimum probability threshold for a SNP to belong to an ancestry.
         """
         return self.__prob_thresh
 
     @prob_thresh.setter
-    def prob_thresh(self, value: float) -> None:
+    def prob_thresh(self, x: float) -> None:
         """Update `prob_thresh`.
         """
-        self.__prob_thresh = value
+        self.__prob_thresh = x
 
     @property
     def average_strands(self) -> bool:
@@ -286,16 +280,16 @@ class mdPCA:
         Retrieve `average_strands`.
         
         Returns:
-            bool: True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
+            **bool:** True if the haplotypes from the two parents are to be combined (averaged) for each individual, or False otherwise.
         """
         return self.__average_strands
 
     @average_strands.setter
-    def average_strands(self, value: bool) -> None:
+    def average_strands(self, x: bool) -> None:
         """
         Update `average_strands`.
         """
-        self.__average_strands = value
+        self.__average_strands = x
 
     @property
     def is_weighted(self) -> bool:
@@ -303,33 +297,34 @@ class mdPCA:
         Retrieve `is_weighted`.
         
         Returns:
-            bool: True if weights are provided in the labels file, or False otherwise.
+            **bool:** True if weights are provided in the labels file, or False otherwise.
         """
         return self.__is_weighted
 
     @is_weighted.setter
-    def is_weighted(self, value: bool) -> None:
+    def is_weighted(self, x: bool) -> None:
         """
         Update `is_weighted`.
         """
-        self.__is_weighted = value
+        self.__is_weighted = x
 
     @property
-    def groups_to_remove(self) -> dict:
+    def groups_to_remove(self) -> Dict[int, List[str]]:
         """
         Retrieve `groups_to_remove`.
         
         Returns:
-            dict: Dictionary specifying groups to exclude from analysis. Keys are array numbers, and values are 
+            **dict of int to list of str:** Dictionary specifying groups to exclude from analysis. Keys are array numbers, and values are 
                 lists of groups to remove for each array. Example: `{1: ['group1', 'group2'], 2: [], 3: ['group3']}`.
         """
         return self.__groups_to_remove
 
     @groups_to_remove.setter
-    def groups_to_remove(self, value: dict) -> None:
-        """Update `groups_to_remove`.
+    def groups_to_remove(self, x: Dict[int, List[str]]) -> None:
         """
-        self.__groups_to_remove = value
+        Update `groups_to_remove`.
+        """
+        self.__groups_to_remove = x
 
     @property
     def min_percent_snps(self) -> float:
@@ -337,18 +332,18 @@ class mdPCA:
         Retrieve `min_percent_snps`.
         
         Returns:
-            float: 
-                Minimum percentage of SNPs to be known in an individual for an individual to be included in the analysis. 
+            **float:** 
+                Minimum percentage of SNPs that must be known for an individual to be included in the analysis.
                 All individuals with fewer percent of unmasked SNPs than this threshold will be excluded.
         """
         return self.__min_percent_snps
 
     @min_percent_snps.setter
-    def min_percent_snps(self, value: float) -> None:
+    def min_percent_snps(self, x: float) -> None:
         """
         Update `min_percent_snps`.
         """
-        self.__min_percent_snps = value
+        self.__min_percent_snps = x
 
     @property
     def save_masks(self) -> bool:
@@ -356,16 +351,16 @@ class mdPCA:
         Retrieve `save_masks`.
         
         Returns:
-            bool: True if the masked matrices are to be saved in a `.npz` file, or False otherwise.
+            **bool:** True if the masked matrices are to be saved in a `.npz` file, or False otherwise.
         """
         return self.__save_masks
 
     @save_masks.setter
-    def save_masks(self, value: bool) -> None:
+    def save_masks(self, x: bool) -> None:
         """
         Update `save_masks`.
         """
-        self.__save_masks = value
+        self.__save_masks = x
 
     @property
     def load_masks(self) -> bool:
@@ -373,67 +368,52 @@ class mdPCA:
         Retrieve `load_masks`.
         
         Returns:
-            bool: True if the masked matrices are to be loaded from pre-existing `.npz` file (`masks_file`), or False otherwise.
+            **bool:** 
+                True if the masked matrices are to be loaded from a pre-existing `.npz` file specified 
+                by `masks_file`, or False otherwise.
         """
         return self.__load_masks
 
     @load_masks.setter
-    def load_masks(self, value: bool) -> None:
+    def load_masks(self, x: bool) -> None:
         """
         Update `load_masks`.
         """
-        self.__load_masks = value
+        self.__load_masks = x
 
     @property
-    def masks_file(self) -> str:
+    def masks_file(self) -> Union[str, pathlib.Path]:
         """
         Retrieve `masks_file`.
         
         Returns:
-            str: Path to the `.npz` file used for saving/loading masked matrices.
+            **str or pathlib.Path:** Path to the `.npz` file used for saving/loading masked matrices.
         """
         return self.__masks_file
 
     @masks_file.setter
-    def masks_file(self, value: str) -> None:
+    def masks_file(self, x: Union[str, pathlib.Path]) -> None:
         """
         Update `masks_file`.
         """
-        self.__masks_file = value
+        self.__masks_file = x
 
     @property
-    def output_file(self) -> str:
+    def output_file(self) -> Union[str, pathlib.Path]:
         """
         Retrieve `output_file`.
         
         Returns:
-            str: Path to the output `.tsv` file where mdPCA results are saved.
+            **str or pathlib.Path:** Path to the output `.tsv` file where mdPCA results are saved.
         """
         return self.__output_file
 
     @output_file.setter
-    def output_file(self, value: str) -> None:
+    def output_file(self, x: Union[str, pathlib.Path]) -> None:
         """
         Update `output_file`.
         """
-        self.__output_file = value
-
-    @property
-    def scatterplot_file(self) -> str:
-        """
-        Retrieve `scatterplot_file`.
-        
-        Returns:
-            str: Path to save the mdPCA scatter plot in HTML format.
-        """
-        return self.__scatterplot_file
-
-    @scatterplot_file.setter
-    def scatterplot_file(self, value: str) -> None:
-        """
-        Update `scatterplot_file`.
-        """
-        self.__scatterplot_file = value
+        self.__output_file = x
 
     @property
     def covariance_matrix_file(self) -> Optional[str]:
@@ -441,16 +421,16 @@ class mdPCA:
         Retrieve `covariance_matrix_file`.
         
         Returns:
-            Optional[str]: Path to save the covariance matrix file in `.npy` format.
+            **str:** Path to save the covariance matrix file in `.npy` format.
         """
         return self.__covariance_matrix_file
     
     @covariance_matrix_file.setter
-    def covariance_matrix_file(self, value: Optional[str]) -> None:
+    def covariance_matrix_file(self, x: Optional[str]) -> None:
         """
         Update `covariance_matrix_file`.
         """
-        self.__covariance_matrix_file = value
+        self.__covariance_matrix_file = x
 
     @property
     def n_components(self) -> int:
@@ -458,16 +438,16 @@ class mdPCA:
         Retrieve `n_components`.
         
         Returns:
-            int: The number of principal components.
+            **int:** The number of principal components.
         """
         return self.__n_components
 
     @n_components.setter
-    def n_components(self, value: int) -> None:
+    def n_components(self, x: int) -> None:
         """
         Update `n_components`.
         """
-        self.__n_components = value
+        self.__n_components = x
 
     @property
     def rsid_or_chrompos(self) -> int:
@@ -475,16 +455,16 @@ class mdPCA:
         Retrieve `rsid_or_chrompos`.
         
         Returns:
-            int: Format indicator for SNP IDs in the SNP data. Use 1 for `rsID` format or 2 for `chromosome_position`.
+            **int:** Format indicator for SNP IDs in the SNP data. Use 1 for `rsID` format or 2 for `chromosome_position`.
         """
         return self.__rsid_or_chrompos
 
     @rsid_or_chrompos.setter
-    def rsid_or_chrompos(self, value: int) -> None:
+    def rsid_or_chrompos(self, x: int) -> None:
         """
         Update `rsid_or_chrompos`.
         """
-        self.__rsid_or_chrompos = value
+        self.__rsid_or_chrompos = x
 
     @property
     def percent_vals_masked(self) -> float:
@@ -492,16 +472,18 @@ class mdPCA:
         Retrieve `percent_vals_masked`.
         
         Returns:
-            float: Percentage of values in the covariance matrix to be masked and then imputed.
+            **float:** 
+                Percentage of values in the covariance matrix to be masked and then imputed. Only applicable if `method` is 
+                `'cov_matrix_imputation'` or `'cov_matrix_imputation_ils'`.
         """
         return self.__percent_vals_masked
 
     @percent_vals_masked.setter
-    def percent_vals_masked(self, value: float) -> None:
+    def percent_vals_masked(self, x: float) -> None:
         """
         Update `percent_vals_masked`.
         """
-        self.__percent_vals_masked = value
+        self.__percent_vals_masked = x
 
     @property
     def X_new_(self) -> Optional[np.ndarray]:
@@ -509,7 +491,8 @@ class mdPCA:
         Retrieve `X_new_`.
 
         Returns:
-            numpy.ndarray: The transformed SNP data onto the `n_components` principal components.
+            **array of shape (n_samples, n_components):** 
+                The transformed SNP data projected onto the `n_components` principal components.
         """
         return self.__X_new_
 
@@ -522,11 +505,11 @@ class mdPCA:
 
     def copy(self) -> 'mdPCA':
         """
-        Create and return a copy of the current `mdPCA` instance.
+        Create and return a copy of `self`.
 
         Returns:
-            mdPCA: 
-            A new instance of the current object.
+            **mdPCA:** 
+                A new instance of the current object.
         """
         return copy.copy(self)
 
@@ -864,7 +847,7 @@ class mdPCA:
             average_strands: Optional[bool] = None
         ) -> np.ndarray:
         """
-        Fit and transform SNP data in `snpobj` into a lower-dimensional space. 
+        Fit the model to the SNP data stored in the provided `snpobj` and apply the dimensionality reduction on the same SNP data.
         
         This method starts by loading or updating SNP and ancestry data. Then, it manages missing values by applying 
         masks based on ancestry, either by loading a pre-existing mask or generating new ones. After processing these 
@@ -873,15 +856,14 @@ class mdPCA:
 
         Args:
             snpobj (SNPObject, optional): 
-                A SNPObject object instance.
+                A SNPObject instance.
             laiobj (LAIObject, optional): 
                 A LAIObject instance.
             labels_file (str, optional): 
-                Path to the labels file. It should be a `.tsv` file where the first column has header `indID` 
-                and contains the individual identifiers, and the second column has header `label` and contains 
-                the groups for all individuals. If `is_weighted=True`, a `weight` column with individual weights is required. 
-                Optionally, `combination` and `combination_weight` columns can specify sets of individuals to be combined 
-                into groups, with respective weights.
+                Path to the labels file in .tsv format. The first column, `indID`, contains the individual identifiers, and the second 
+                column, `label`, specifies the groups for all individuals. If `is_weighted=True`, a `weight` column with individual 
+                weights is required. Optionally, `combination` and `combination_weight` columns can specify sets of individuals to be 
+                combined into groups, with respective weights.
             ancestry (str, optional): 
                 Ancestry for which dimensionality reduction is to be performed. Ancestry counter starts at 0.
             average_strands (bool, optional): 
@@ -889,7 +871,8 @@ class mdPCA:
                 If None, defaults to `self.average_strands`.
 
         Returns:
-            numpy.ndarray: The transformed SNP data onto the `n_components` principal components, stored in `self.X_new_`.
+            **array of shape (n_samples, n_components):** 
+                The transformed SNP data projected onto the `n_components` principal components, stored in `self.X_new_`.
         """
         if snpobj is None:
             snpobj = self.snpobj
@@ -903,7 +886,7 @@ class mdPCA:
             average_strands = self.average_strands
         
         if self.load_masks:
-            masks, rs_id_list, ind_id_list, labels, weights = self._load_mask_file()
+            masks, rs_id_list, ind_id_list, _, weights = self._load_mask_file()
         else:
             masks, rs_id_list, ind_id_list = array_process(
                 self.snpobj,
@@ -914,7 +897,7 @@ class mdPCA:
                 self.rsid_or_chrompos
             )
 
-            masks, ind_id_list, labels, weights = process_labels_weights(
+            masks, ind_id_list, _, weights = process_labels_weights(
                 self.labels_file,
                 masks,
                 rs_id_list,
@@ -928,7 +911,7 @@ class mdPCA:
                 self.masks_file
             )
 
-        X_incomplete, _, ind_IDs = self._process_masks(masks, rs_id_list, ind_id_list)
+        X_incomplete, _, _ = self._process_masks(masks, rs_id_list, ind_id_list)
 
         # Call run_cov_matrix with the specified method
         self.X_new_ = self._run_cov_matrix(
