@@ -1,5 +1,6 @@
 import logging
 from typing import Optional, List
+from pathlib import Path
 import gzip
 import allel
 import numpy as np
@@ -102,7 +103,7 @@ def _get_vcf_names(vcf_path: str):
 
     Parameters
     ----------
-    vcf_path: str
+    vcf_path: str or Path
         The path to the VCF file.
 
     Returns
@@ -110,18 +111,21 @@ def _get_vcf_names(vcf_path: str):
     List[str]
         List of column names.
     """
-    if vcf_path.endswith('.vcf.gz'):
-        with gzip.open(vcf_path, "rt") as ifile:
-            for line in ifile:
-                if line.startswith("#CHROM"):
-                    vcf_names = [x.strip() for x in line.split('\t')]
-                    break
+    vcf_path = Path(vcf_path)
+    if vcf_path.suffixes[-2:] == ['.vcf', '.gz']:
+        open_func = gzip.open
+        mode = 'rt'
+    elif vcf_path.suffix == '.vcf':
+        open_func = open
+        mode = 'r'
     else:
-        with open(vcf_path, "r") as ifile:
-            for line in ifile:
-                if line.startswith("#CHROM"):
-                    vcf_names = [x.strip() for x in line.split('\t')]
-                    break
+        raise ValueError(f"Unsupported file extension: {vcf_path.suffixes}")
+
+    with open_func(vcf_path, mode) as ifile:
+        for line in ifile:
+            if line.startswith("#CHROM"):
+                vcf_names = [x.strip() for x in line.split('\t')]
+                break
 
     return vcf_names
 

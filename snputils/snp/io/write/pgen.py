@@ -2,6 +2,7 @@ import logging
 import numpy as np
 import polars as pl
 import pgenlib as pg
+from pathlib import Path
 
 from snputils.snp.genobj.snpobj import SNPObject
 
@@ -26,15 +27,15 @@ class PGENWriter:
         TODO: add support for parallel writing by chromosome.
         """
         self.__snpobj = snpobj
-        self.__filename = filename
+        self.__filename = Path(self.__filename)
 
     def write(self):
         """
         Writes the SNPObject data to .pgen, .psam, and .pvar files.
         """
-        file_extension = (".pgen", ".psam", ".pvar")
-        if self.__filename.endswith(file_extension):
-            self.__filename = self.__filename[:-5]
+        file_extensions = (".pgen", ".psam", ".pvar")
+        if self.__filename.suffix in file_extensions:
+            self.__filename = self.__filename.with_suffix('')
         self.__file_extension = ".pgen"
 
         self.write_pvar()

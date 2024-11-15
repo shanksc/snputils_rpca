@@ -18,7 +18,7 @@ def data_path():
     os.makedirs(data_path, exist_ok=True)
 
     files_urls = {
-        "plink2_linux_x86_64_20241020.zip": "https://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_20241020.zip",
+        "plink2_linux_x86_64_20241020.zip": "https://s3.amazonaws.com/plink2-assets/alpha6/plink2_linux_x86_64_20241114.zip",
         "ALL.chr21.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz": "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20181203_biallelic_SNV/ALL.chr21.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz",
     }
 
@@ -28,14 +28,14 @@ def data_path():
         if not file_path.exists():
             print(f"Downloading {file_name} to {data_path}. This may take a while...")
             urllib.request.urlretrieve(url, file_path)
-            if file_name.endswith(".zip"):
+            if file_path.suffix == ".zip":
                 with zipfile.ZipFile(file_path, "r") as zip_ref:
                     zip_ref.extractall(data_path)
                 subprocess.run(
                     ["chmod", "+x", data_path / "plink2"], cwd=str(data_path)
                 )
 
-        if file_name.endswith(".vcf.gz"):
+        if file_path.suffixes[-2:] == ['.vcf', '.gz']:
             # Subset sample files
             subset_file = data_path / "subset.txt"
             if not subset_file.exists():

@@ -2,6 +2,7 @@ import logging
 import pandas as pd
 import numpy as np
 import joblib
+from pathlib import Path
 
 from snputils.snp.genobj import SNPObject
 
@@ -28,7 +29,7 @@ class VCFWriter:
             "maternal/paternal" format.
         """
         self.__snpobj = snpobj
-        self.__filename = filename
+        self.__filename = Path(self.__filename)
         self.__n_jobs = n_jobs
         self.__phased = phased
 
@@ -42,10 +43,10 @@ class VCFWriter:
         """
         self.__chrom_partition = chrom_partition
 
-        file_extension = (".vcf", ".bcf")
-        if self.__filename.endswith(file_extension):
-            self.__file_extension = self.__filename[-4:]
-            self.__filename = self.__filename[:-4]
+        file_extensions = (".vcf", ".bcf")
+        if self.__filename.suffix in file_extensions:
+            self.__file_extension = self.__filename.suffix
+            self.__filename = self.__filename.with_suffix('')
         else:
             self.__file_extension = ".vcf"
 
