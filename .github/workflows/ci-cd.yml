@@ -33,12 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.8', '3.13']
+        python-version: ['3.8', '3.13']  # Test on limit versions (3.8 and latest)
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch full repository history, including all tags
+          fetch-depth: 0  # Fetch full repository history, including all tags
 
       - name: Verify available tags
         run: git tag -l
@@ -75,7 +75,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch full repository history, including all tags
+          fetch-depth: 0  # Fetch full repository history, including all tags
 
       - name: Verify available tags
         run: git tag -l
@@ -83,7 +83,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.13'  # Ensure this is the latest Python version so the cached deps are used
           cache: 'pip'
 
       - name: Install package with docs dependencies
@@ -120,7 +120,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch full repository history, including all tags
+          fetch-depth: 0  # Fetch full repository history, including all tags
 
       - name: Verify available tags
         run: git tag -l
@@ -128,7 +128,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.13'  # Ensure this is the latest Python version so the cached deps are used
           cache: 'pip'
 
       - name: Install build dependencies
