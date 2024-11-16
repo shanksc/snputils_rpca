@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "snputils"
-version = "0.2.3"
-description = "SNP utils"
+# Version is set by setuptools_scm and determined by the latest git tag
+description = "Process diverse genomes with ease"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "BSD 3-Clause License"}
@@ -67,3 +67,21 @@ include = ["snputils*"]
 [tool.mypy]
 python_version = "3.8"
 ignore_missing_imports = true
+
+[tool.tox]
+env_list = ["py38", "py313"]  # Testing boundary versions only
+
+[tool.tox.gh-actions]
+python.py38 = "3.8"
+python.py313 = "3.13"
+
+[tool.tox.env]
+isolated_build = true
+pass_env = [
+    "CI",
+    "GITHUB_ACTIONS"
+]
+extras = ["testing"]
+commands = [
+    "python -m pytest -vv --color=yes --cov=snputils --cov-report=xml"
+]
