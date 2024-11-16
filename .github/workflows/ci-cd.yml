@@ -145,10 +145,10 @@ jobs:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
 
-      # Update the release to a full release
-      - name: Mark Release as Final
+      # Update the release to a full release and mark it as latest
+      - name: Mark Release as Final and Latest
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release edit ${{ github.event.release.tag_name }} --prerelease=false
+          gh release edit ${{ github.event.release.tag_name }} --prerelease=false --latest
