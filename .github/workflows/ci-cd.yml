@@ -1,9 +1,15 @@
-# This workflow handles testing, documentation, and publishing for the project.
-# It runs on pull requests to main and when releases are published.
-# The workflow ensures that:
-# 1. Tests pass before any other operations
-# 2. Documentation is built and deployed (deployment only on release)
-# 3. Package is published to PyPI (only on release and after docs are deployed)
+# File: .github/workflows/release.yml
+# This workflow handles:
+# 1. For Pull Requests:
+#    - Runs all tests
+#    - Verifies documentation builds
+# 2. For Pre-releases:
+#    - Runs all tests
+#    - Builds documentation
+#    - Deploys documentation to GitHub Pages
+#    - Publishes package to PyPI
+#    - If everything passes:
+#      - Updates the release to a full release (removes pre-release status)
 
 name: Test, Docs & Publish
 
@@ -16,109 +22,130 @@ on:
   release:
     types: [published]
 
-# Default permissions are read-only
 permissions:
-  contents: read
+  contents: write   # Needed to update release status
+  pages: write      # Needed for docs deployment
+  id-token: write   # Needed for docs deployment
 
 jobs:
   test:
+    if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.release.prerelease == true)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"  # tox manages specific versions
-          cache: "pip"
+          cache: "pip"           # Enables automatic pip caching
+
       # Cache test data
       - name: Cache test data
         uses: actions/cache@v4
         with:
           path: data/
-          key: test-data-${{ hashFiles('tests/conftest.py') }}
-          restore-keys: test-data-
+          key: snputils-test-data-${{ hashFiles('tests/conftest.py') }}
+          restore-keys: |
+            snputils-test-data-
+
       # Cache tox environments
       - name: Cache tox environments
         uses: actions/cache@v4
         with:
           path: .tox
-          key: tox-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+          key: snputils-tox-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
-            tox-${{ runner.os }}-
+            snputils-tox-${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install tox tox-gh-actions
+
       - name: Run tests
         run: python -m tox
 
   build-docs:
     # Only build documentation after tests have passed
     needs: test
+    if: needs.test.result == 'success' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.release.prerelease == true))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
           cache: 'pip'
+
       - name: Install package with docs dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install '.[docs]'
+
+      # Build documentation and verify it builds correctly
       # DOC_ALLOW_EXEC=1 allows executing code examples in docstrings
       - name: Build documentation
         run: DOC_ALLOW_EXEC=1 pdoc --docformat google -o docs/ snputils
-      # Upload documentation as an artifact for deployment
-      - name: Upload documentation
+
+      # Upload Pages artifact if this is a release
+      - name: Upload Pages artifact
+        if: github.event_name == 'release'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/
 
-  deploy-docs:
-    # Deploy documentation to GitHub Pages only on release
-    # This job requires additional permissions for GitHub Pages
-    if: github.event_name == 'release' && github.event.action == 'published'
-    needs: build-docs
+  deploy:
+    needs: [test, build-docs]
+    if: needs.build-docs.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == true
     runs-on: ubuntu-latest
-    permissions:
-      pages: write      # Required for deploying to GitHub Pages
-      id-token: write   # Required for authentication
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # Deploy documentation to GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
-  deploy-pypi:
-    # Deploy to PyPI only on release and after both tests pass and docs are deployed
-    # This ensures the documentation is available when the package is published
-    needs: [test, deploy-docs]
-    if: github.event_name == 'release' && github.event.action == 'published'
-    runs-on: ubuntu-latest
-    steps:
+      # Build and publish to PyPI
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
           cache: 'pip'
+
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install build
+
       - name: Build package
         run: python -m build
-      # Publish to PyPI using API token
-      # Token must be configured in repository secrets
-      - name: Publish package
-        uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+      # Update the release to a full release
+      - name: Mark Release as Final
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit ${{ github.event.release.tag_name }} --prerelease=false
