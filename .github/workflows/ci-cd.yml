@@ -31,6 +31,9 @@ jobs:
   test:
     if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.release.prerelease == true)
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.13']
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,10 +43,10 @@ jobs:
       - name: Verify available tags
         run: git tag -l
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"  # tox manages specific versions
+          python-version: ${{ matrix.python-version }}
           cache: "pip"           # Enables automatic pip caching
 
       # Cache test data
@@ -54,15 +57,6 @@ jobs:
           key: snputils-test-data-${{ hashFiles('tests/conftest.py') }}
           restore-keys: |
             snputils-test-data-
-
-      # Cache tox environments
-      - name: Cache tox environments
-        uses: actions/cache@v4
-        with:
-          path: .tox
-          key: snputils-tox-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            snputils-tox-${{ runner.os }}-
 
       - name: Install dependencies
         run: |
