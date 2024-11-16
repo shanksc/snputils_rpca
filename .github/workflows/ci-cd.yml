@@ -54,9 +54,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: data/
-          key: snputils-test-data-${{ hashFiles('tests/conftest.py') }}
-          restore-keys: |
-            snputils-test-data-
+          key: snputils-test-data-${{ hashFiles('snputils/snp/io/read/__test__/conftest.py') }}
 
       - name: Install dependencies
         run: |
