@@ -70,13 +70,15 @@ ignore_missing_imports = true
 
 [tool.tox]
 env_list = ["py38", "py313"]  # Testing boundary versions only
+isolated_build = true
 
 [tool.tox.gh-actions]
-python.py38 = "3.8"
-python.py313 = "3.13"
+python = """
+    3.8: py38
+    3.13: py313
+"""
 
 [tool.tox.env]
-isolated_build = true
 pass_env = [
     "CI",
     "GITHUB_ACTIONS"
