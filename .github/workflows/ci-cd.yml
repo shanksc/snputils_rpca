@@ -32,10 +32,13 @@ jobs:
     if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.release.prerelease == true)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Get tags
-        run: git fetch --tags origin
+        with:
+          fetch-depth: 0 # Fetch full repository history, including all tags
+
+      - name: Verify available tags
+        run: git tag -l
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -75,10 +78,13 @@ jobs:
     if: needs.test.result == 'success' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.release.prerelease == true))
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Get tags
-        run: git fetch --tags origin
+        with:
+          fetch-depth: 0 # Fetch full repository history, including all tags
+
+      - name: Verify available tags
+        run: git tag -l
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -117,10 +123,13 @@ jobs:
         uses: actions/deploy-pages@v4
 
       # Build and publish to PyPI
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Get tags
-        run: git fetch --tags origin
+        with:
+          fetch-depth: 0 # Fetch full repository history, including all tags
+
+      - name: Verify available tags
+        run: git tag -l
 
       - name: Set up Python
         uses: actions/setup-python@v5
