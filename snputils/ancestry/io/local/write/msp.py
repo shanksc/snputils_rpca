@@ -49,7 +49,7 @@ class MSPWriter(LAIBaseWriter):
         """
         return self.__file
     
-    def write(self):
+    def write(self) -> None:
         """
         Write the data contained in the `laiobj` instance to the specified output `file`. 
         If the file already exists, it will be overwritten.
@@ -59,18 +59,18 @@ class MSPWriter(LAIBaseWriter):
         The output `.msp` file will contain local ancestry assignments for each haplotype across genomic windows.
         Each row corresponds to a genomic window and includes the following columns:
 
-        - `#chm`: Chromosome numbers corresponding to each genomic window.
+        - `#chm`: Chromosome numbers corresponding to each genomic window (if available).
         - `spos`: Start physical position for each window (if available).
         - `epos`: End physical position for each window (if available).
         - `sgpos`: Start centimorgan position for each window (if available).
         - `egpos`: End centimorgan position for each window (if available).
         - `n snps`: Number of SNPs in each genomic window (if available).
-        - `SampleID.0`: Local ancestry for the first haplotype of the sample for each window.
-        - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window.
+        - `SampleID.0`: Local ancestry for the first haplotype of the sample for each window (if available).
+        - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window (if available).
         """
         log.info(f"LAI object contains: {self.laiobj.n_samples} samples, {self.laiobj.n_ancestries} ancestries.")
 
-        # Define the required file extensions
+        # Define the valid file extensions
         valid_extensions = ('.msp', '.msp.tsv')
 
         # Append '.msp' extension if not already present
@@ -81,9 +81,12 @@ class MSPWriter(LAIBaseWriter):
         columns = []
         lai_dic = {}
 
-        # Add chromosome numbers
-        lai_dic["#chm"] = self.laiobj.chromosomes
-        columns.append("#chm")
+        # Add chromosome numbers if available
+        if self.laiobj.chromosomes is not None:
+            lai_dic["#chm"] = self.laiobj.chromosomes
+            columns.append("#chm")
+        else:
+            log.warning("Chromosome numbers ('#chm') are not available in the LAI object.")
 
         # Add physical positions if available
         if self.laiobj.physical_pos is not None:
@@ -108,17 +111,30 @@ class MSPWriter(LAIBaseWriter):
         else:
             log.warning("Window sizes ('n snps') are not available in the LAI object.")
 
-        # Add haplotype-level LAI data
-        ilai = 0
-        for ID in self.laiobj.samples:
-            # First haplotype
-            lai_dic[f"{ID}.0"] = self.laiobj.lai[:, ilai]
-            columns.append(f"{ID}.0")
-            # Second haplotype
-            lai_dic[f"{ID}.1"] = self.laiobj.lai[:, ilai + 1]
-            columns.append(f"{ID}.1")
-            # Move to the next pair of haplotypes
-            ilai += 2
+        # Add haplotype-level LAI data if available
+        if self.laiobj.samples is not None and self.laiobj.lai is not None:
+            ilai = 0
+            for ID in self.laiobj.samples:
+                # First haplotype
+                if ilai < self.laiobj.lai.shape[1]:
+                    lai_dic[f"{ID}.0"] = self.laiobj.lai[:, ilai]
+                    columns.append(f"{ID}.0")
+                else:
+                    log.warning(f"Missing LAI data for {ID}.0")
+                # Second haplotype
+                if ilai + 1 < self.laiobj.lai.shape[1]:
+                    lai_dic[f"{ID}.1"] = self.laiobj.lai[:, ilai + 1]
+                    columns.append(f"{ID}.1")
+                else:
+                    log.warning(f"Missing LAI data for {ID}.1")
+                # Move to the next pair of haplotypes
+                ilai += 2
+        else:
+            log.warning("Sample IDs or LAI data are not available in the LAI object.")
+
+        # Check if we have any data to write
+        if not columns:
+            raise ValueError("No data available to write to the MSP file.")
 
         # Create a DataFrame from the dictionary containing all data
         lai_df = pd.DataFrame(lai_dic, columns=columns)
