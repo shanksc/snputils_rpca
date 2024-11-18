@@ -511,6 +511,7 @@ class LocalAncestryObject(AncestryObject):
     def save(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a specified file.
+        If the file already exists, it will be overwritten.
 
         The format of the saved file is determined by the file extension provided in the `file` 
         argument.
@@ -542,6 +543,7 @@ class LocalAncestryObject(AncestryObject):
     def save_msp(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a `.msp` file.
+        If the file already exists, it will be overwritten.
 
         Args:
             file (str or pathlib.Path): 
@@ -555,6 +557,7 @@ class LocalAncestryObject(AncestryObject):
     def save_pickle(self, file: Union[str, Path]) -> None:
         """
         Save `self` in serialized form to a `.pkl` file.
+        If the file already exists, it will be overwritten.
 
         Args:
             file (str or pathlib.Path): 
