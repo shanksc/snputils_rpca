@@ -5,27 +5,36 @@ from typing import Union
 
 
 class LAIReader:
-    def __new__(cls,
-                filename: Union[str, pathlib.Path]) -> LAIReader:
+    def __new__(
+        cls,
+        file: Union[str, pathlib.Path]
+    ) -> object:
         """
-        Automatically detect the local ancestry data file format from the file extension, and return its corresponding reader.
+        A factory class that automatically detects the local ancestry data file format from the 
+        file's extension and returns the corresponding reader object.
+
+        **Supported File Extensions:**
+        - `.msp`: Text-based MSP format.
+        - `.msp.tsv`: Text-based MSP format with TSV extension.
 
         Args:
-            filename: Filename of the file to read.
-
-        Raises:
-            ValueError: If the filename does not have an extension or the extension is not supported.
+            file (str or pathlib.Path): 
+                The path to the file where the data will be saved. It should end with `.msp` or `.msp.tsv`.
+        
+        Returns:
+            **object:** A reader object corresponding to the file format (e.g., `MSPReader`).
         """
-        filename = pathlib.Path(filename)
-        suffixes = filename.suffixes
+        file = pathlib.Path(file)
+        suffixes = [suffix.lower() for suffix in file.suffixes]
         if not suffixes:
-            raise ValueError("The filename should have an extension when using LAIReader.")
+            raise ValueError("The file must have an extension. Supported extensions are: .msp, .msp.tsv.")
 
-        extension = suffixes[-1].lower()
-
-        if extension == ".msp":
+        if suffixes[-2:] == ['.msp', '.tsv'] or suffixes[-1] == '.msp':
             from snputils.ancestry.io.local.read.msp import MSPReader
 
-            return MSPReader(filename)
+            return MSPReader(file)
         else:
-            raise ValueError(f"File format not supported: {filename}")
+            raise ValueError(
+                f"Unsupported file extension: {suffixes[-1]}. "
+                "Supported extensions are: .msp, .msp.tsv."
+            )
