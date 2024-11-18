@@ -1,30 +1,31 @@
 from __future__ import annotations
 
-import pathlib
+from pathlib import Path
 from typing import Union
 
 
 class LAIReader:
     def __new__(
         cls,
-        file: Union[str, pathlib.Path]
+        file: Union[str, Path]
     ) -> object:
         """
         A factory class that automatically detects the local ancestry data file format from the 
         file's extension and returns the corresponding reader object.
 
-        **Supported File Extensions:**
+        **Supported formats:**
+
         - `.msp`: Text-based MSP format.
         - `.msp.tsv`: Text-based MSP format with TSV extension.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.msp` or `.msp.tsv`.
+                Path to the file to be read. It should end with `.msp` or `.msp.tsv`.
         
         Returns:
             **object:** A reader object corresponding to the file format (e.g., `MSPReader`).
         """
-        file = pathlib.Path(file)
+        file = Path(file)
         suffixes = [suffix.lower() for suffix in file.suffixes]
         if not suffixes:
             raise ValueError("The file must have an extension. Supported extensions are: .msp, .msp.tsv.")

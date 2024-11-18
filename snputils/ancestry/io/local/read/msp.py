@@ -1,4 +1,4 @@
-import pathlib
+from pathlib import Path
 from typing import List, Dict, Optional
 import logging
 import warnings
@@ -28,16 +28,16 @@ class MSPReader(LAIBaseReader):
       Each haplotype is typically denoted by a sample identifier with a `.0` (paternal) or `.1` (maternal) suffix.
     - **LAI data**: Haplotype-level ancestry information for each genomic window.
     """
-    def __init__(self, file: Union[str, pathlib.Path]) -> None:
+    def __init__(self, file: Union[str, Path]) -> None:
         """
         Args:
             file (str or pathlib.Path): 
                 Path to the file to be read. It should end with `.msp` or `.msp.tsv`.
         """
-        self.__file = pathlib.Path(file)
+        self.__file = Path(file)
 
     @property
-    def file(self) -> pathlib.Path:
+    def file(self) -> Path:
         """
         Retrieve `file`.
 
