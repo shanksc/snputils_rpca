@@ -9,13 +9,14 @@ class LAIBaseWriter(abc.ABC):
     """
     Abstract class for local ancestry writers.
     """
-    def __init__(self, laiobj: LocalAncestryObject, file=Union[str, Path]) -> None:
+    def __init__(self, laiobj: LocalAncestryObject, file: Union[str, Path]) -> None:
         """
         Args:
             laiobj (LocalAncestryObject):
-                A local ancestry object instance.
+                A LocalAncestryObject instance.
             file (str or pathlib.Path): 
-                Path to the output `.msp` file containing LAI info.
+                Path to the file where the data will be saved. It should end with `.msp` or `.msp.tsv`. 
+                If the provided path does not have one of these extensions, the `.msp` extension will be appended.
         """
         self.__laiobj = laiobj
         self.__file = Path(file)
@@ -27,17 +28,19 @@ class LAIBaseWriter(abc.ABC):
 
         Returns:
             laiobj (LocalAncestryObject):
-                A local ancestry object instance.
+                A LocalAncestryObject instance.
         """
         return self.__laiobj
 
     @property
-    def file(self) -> str:
+    def file(self) -> Path:
         """
         Retrieve `file`.
 
         Returns:
-            pathlib.Path: Path to the output `.msp` file containing LAI info.
+            pathlib.Path: 
+                Path to the file where the data will be saved. It should end with `.msp` or `.msp.tsv`. 
+                If the provided path does not have one of these extensions, the `.msp` extension will be appended.
         """
         return self.__file
 

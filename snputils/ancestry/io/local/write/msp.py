@@ -11,15 +11,17 @@ log = logging.getLogger(__name__)
 
 class MSPWriter(LAIBaseWriter):
     """
-    A class for writing data stored in a `LocalAncestryObject` instance into an `.msp` file.
+    A writer class for exporting local ancestry data from a `snputils.ancestry.genobj.LocalAncestryObject` 
+    into an `.msp` or `.msp.tsv` file.
     """
-    def __init__(self, laiobj: LocalAncestryObject, file=Union[str, Path]) -> None:
+    def __init__(self, laiobj: LocalAncestryObject, file: Union[str, Path]) -> None:
         """
         Args:
             laiobj (LocalAncestryObject):
                 A local ancestry object instance.
             file (str or pathlib.Path): 
-                Path to the output `.msp` file containing LAI info.
+                Path to the file where the data will be saved. It should end with `.msp` or `.msp.tsv`. 
+                If the provided path does not have one of these extensions, the `.msp` extension will be appended.
         """
         self.__laiobj = laiobj
         self.__file = Path(file)
@@ -30,38 +32,40 @@ class MSPWriter(LAIBaseWriter):
         Retrieve `laiobj`. 
 
         Returns:
-            laiobj (LocalAncestryObject):
+            **LocalAncestryObject:** 
                 A local ancestry object instance.
         """
         return self.__laiobj
 
     @property
-    def file(self) -> str:
+    def file(self) -> Path:
         """
         Retrieve `file`.
 
         Returns:
-            pathlib.Path: Path to the output `.msp` file containing LAI info.
+            **pathlib.Path:** 
+                Path to the file where the data will be saved. It should end with `.msp` or `.msp.tsv`. 
+                If the provided path does not have one of these extensions, the `.msp` extension will be appended.
         """
         return self.__file
     
     def write(self):
         """
-        Write the data contained in the `laiobj` instance into an `.msp` file.
+        Write the data contained in the `laiobj` instance to the specified output `file`.
 
-        This method constructs the `.msp` file where each row corresponds to a genomic 
-        window and includes the following columns:
+        **Output MSP content:**
 
-            - `#chm`: Chromosome number corresponding to each window.
-            - `spos`: Start physical position for each window.
-            - `epos`: End physical position for each window.
-            - `sgpos`: Start centimorgan position for each window.
-            - `egpos`: End centimorgan position for each window.
-            - `n snps`: Number of SNPs within each genomic window.
-            - `SampleID.0`: Local ancestry for the first haplotype of the sample for each window.
-            - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window.
-        
-        If the specified file does not end with `.msp`, the extension will be appended.
+        The output `.msp` file will contain local ancestry assignments for each haplotype across genomic windows.
+        Each row corresponds to a genomic window and includes the following columns:
+
+        - `#chm`: Chromosome numbers corresponding to each genomic window.
+        - `spos`: Start physical position for each window (optional).
+        - `epos`: End physical position for each window (optional).
+        - `sgpos`: Start centimorgan position for each window (optional).
+        - `egpos`: End centimorgan position for each window (optional).
+        - `n snps`: Number of SNPs in each genomic window (optional).
+        - `SampleID.0`: Local ancestry for the first haplotype of the sample for each window.
+        - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window.
         """
         log.info(f"LAI object contains: {self.laiobj.n_samples} samples, {self.laiobj.n_ancestries} ancestries.")
 
@@ -83,7 +87,7 @@ class MSPWriter(LAIBaseWriter):
             "n snps" : self.laiobj.window_sizes
         }
 
-         # Populate the dictionary with sample data
+        # Populate the dictionary with sample data
         ilai = 0
         for ID in self.laiobj.samples:
             # First haplotype

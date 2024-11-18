@@ -7,8 +7,7 @@ from snputils.ancestry.genobj.local import LocalAncestryObject
 def read_lai(file: Union[str, Path], **kwargs) -> LocalAncestryObject:
     """
     Automatically detect the local ancestry data file format from the file's extension and 
-    read it into a `snputils.ancestry.genobj.LocalAncestryObject` that contains haplotype-level
-    ancestry assignments across genomic windows.
+    read it into a `snputils.ancestry.genobj.LocalAncestryObject`.
 
     **Supported formats:**
 
@@ -27,8 +26,7 @@ def read_lai(file: Union[str, Path], **kwargs) -> LocalAncestryObject:
 
 def read_msp(file: Union[str, Path]) -> 'LocalAncestryObject':
     """
-    Read data from an `.msp` or `.msp.tsv` file and construct a `snputils.ancestry.genobj.LocalAncestryObject` 
-    that contains haplotype-level ancestry assignments across genomic windows.
+    Read data from an `.msp` or `.msp.tsv` file and construct a `snputils.ancestry.genobj.LocalAncestryObject`.
 
     Args:
         file (str or pathlib.Path): 

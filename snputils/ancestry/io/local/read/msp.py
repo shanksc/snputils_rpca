@@ -14,19 +14,8 @@ log = logging.getLogger(__name__)
 
 class MSPReader(LAIBaseReader):
     """
-    A reader class for parsing Local Ancestry Inference (LAI) data from `.msp` or `msp.tsv` files
-    and constructing a `snputils.ancestry.genobj.LocalAncestryObject` that contains haplotype-level
-    ancestry assignments across genomic windows.
-
-    **Expected MSP content:**
-
-    - **Chromosome numbers** (`#chm`): Chromosome numbers corresponding to each genomic window.
-    - **Physical positions** (`spos`, `epos`): Start and end physical positions (base pairs) for each window (if available).
-    - **Genetic positions** (`sgpos`, `egpos`): Start and end centimorgan positions for each window (if available).
-    - **Window sizes** (`n snps`): Number of SNPs in each genomic window (if available).
-    - **Haplotype identifiers**: Column headers for LAI data columns, starting from the first LAI column.
-      Each haplotype is typically denoted by a sample identifier with a `.0` (paternal) or `.1` (maternal) suffix.
-    - **LAI data**: Haplotype-level ancestry information for each genomic window.
+    A reader class for parsing Local Ancestry Inference (LAI) data from an `.msp` or `msp.tsv` file
+    and constructing a `snputils.ancestry.genobj.LocalAncestryObject`.
     """
     def __init__(self, file: Union[str, Path]) -> None:
         """
@@ -42,7 +31,7 @@ class MSPReader(LAIBaseReader):
         Retrieve `file`.
 
         Returns:
-            **file (str or pathlib.Path):** 
+            **pathlib.Path:** 
                 Path to the file to be read. It should end with `.msp` or `.msp.tsv`.
         """
         return self.__file
@@ -99,7 +88,22 @@ class MSPReader(LAIBaseReader):
 
     def read(self) -> 'LocalAncestryObject':
         """
-        Read data from the provided `file` and construct a `snputils.ancestry.genobj.LocalAncestryObject`.
+        Read data from the provided `.msp` or `msp.tsv` `file` and construct a 
+        `snputils.ancestry.genobj.LocalAncestryObject`.
+
+        **Expected MSP content:**
+
+        The `.msp` file should contain local ancestry assignments for each haplotype across genomic windows.
+        Each row should correspond to a genomic window and include the following columns:
+
+        - `#chm`: Chromosome numbers corresponding to each genomic window.
+        - `spos`: Start physical position for each window (optional).
+        - `epos`: End physical position for each window (optional).
+        - `sgpos`: Start centimorgan position for each window (optional).
+        - `egpos`: End centimorgan position for each window (optional).
+        - `n snps`: Number of SNPs in each genomic window (optional).
+        - `SampleID.0`: Local ancestry for the first haplotype of the sample for each window.
+        - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window.
 
         Returns:
             **LocalAncestryObject:**

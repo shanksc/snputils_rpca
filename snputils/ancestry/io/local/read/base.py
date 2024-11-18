@@ -23,7 +23,7 @@ class LAIBaseReader(abc.ABC):
         Retrieve `file`.
 
         Returns:
-            file (str or pathlib.Path): 
+            pathlib.Path: 
                 Path to the file to be read. It should end with `.msp` or `.msp.tsv`.
         """
         return self.__file
