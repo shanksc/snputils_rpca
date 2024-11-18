@@ -510,13 +510,56 @@ class LocalAncestryObject(AncestryObject):
 
     def save(self, file: Union[str, pathlib.Path]) -> None:
         """
+        Save the data stored in `self` to a specified file.
+
+        The format of the saved file is determined by the file extension provided in the `file` 
+        argument.
+
+        **Supported File Extensions:**
+        - `.msp`: Text-based MSP format.
+        - `.msp.tsv`: Text-based MSP format with TSV extension.
+        - `.pkl`: Pickle format for saving `self` in serialized form.
+
+        Args:
+            file (str or pathlib.Path): 
+                The path to the file where the data will be saved. The extension of the file determines the save format. 
+                Supported extensions: `.msp`, `.msp.tsv`, `.pkl`.
+        """
+        path = pathlib.Path(file)
+        suffixes = [suffix.lower() for suffix in path.suffixes]
+
+        if suffixes[-2:] == ['.msp', '.tsv'] or suffixes[-1] == '.msp':
+            self.save_msp(file)
+        elif suffixes[-1] == '.pkl':
+            self.save_pickle(file)
+        else:
+            raise ValueError(
+                f"Unsupported file extension: {suffixes[-1]}"
+                "Supported extensions are: .msp, .msp.tsv, .pkl."
+            )
+
+    def save_msp(self, file: Union[str, pathlib.Path]) -> None:
+        """
         Save the data stored in `self` to a `.msp` file.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.msp`. 
-                If the provided path does not have this extension, it will be appended.
+                The path to the file where the data will be saved. It should end with `.msp` or `.msp.tsv`. 
+                If the provided path does not have one of these extensions, the `.msp` extension will be appended.
         """
         from snputils.ancestry.io.local.write import MSPWriter
 
         MSPWriter(self, file).write()
+
+    def save_pickle(self, file: Union[str, pathlib.Path]) -> None:
+        """
+        Save `self` in serialized form to a `.pkl` file.
+
+        Args:
+            file (str or pathlib.Path): 
+                The path to the file where the data will be saved. It should end with `.pkl`. 
+                If the provided path does not have this extension, it will be appended.
+        """
+        import pickle
+        with open(file, 'wb') as file:
+            pickle.dump(self, file)
