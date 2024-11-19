@@ -118,6 +118,7 @@ class PGENReader(SNPBaseReader):
             if variant_idxs is None:
                 num_variants = file_num_variants
                 variant_idxs = np.arange(num_variants, dtype=np.uint32)
+                pvar = pvar.collect()
             else:
                 num_variants = np.size(variant_idxs)
                 variant_idxs = np.array(variant_idxs, dtype=np.uint32)
