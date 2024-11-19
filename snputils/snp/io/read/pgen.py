@@ -109,7 +109,7 @@ class PGENReader(SNPBaseReader):
                     pvar_has_header = False
 
             pvar = pl.scan_csv(
-                filename_noext + ".pvar",
+                pvar_filename,
                 separator='\t',
                 skip_rows=pvar_header_line_num,
                 has_header=pvar_has_header,
@@ -122,7 +122,7 @@ class PGENReader(SNPBaseReader):
                     "ALT": pl.String,
                 },
             ).with_row_index()
-            
+
             # since pvar is lazy, the skip_rows operation hasn't materialized
             # pl.len() will return the length of the pvar + header
             file_num_variants = pvar.select(pl.len()).collect().item() - pvar_header_line_num
