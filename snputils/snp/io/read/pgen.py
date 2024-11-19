@@ -99,12 +99,17 @@ class PGENReader(SNPBaseReader):
                     "ID": pl.String,
                     "REF": pl.String,
                     "ALT": pl.String,
-                }
-            )
+                },
+            ).with_row_index()
             file_num_variants = pvar.height
 
             if variant_ids is not None:
-                variant_idxs = pvar.filter(pl.col("ID").is_in(variant_ids)).row_nr().to_numpy()
+                variant_idxs = (
+                    pvar.filter(pl.col("ID").is_in(variant_ids))
+                    .select("index")
+                    .to_series()
+                    .to_numpy()
+                )
 
             if variant_idxs is None:
                 num_variants = file_num_variants
@@ -112,7 +117,7 @@ class PGENReader(SNPBaseReader):
             else:
                 num_variants = np.size(variant_idxs)
                 variant_idxs = np.array(variant_idxs, dtype=np.uint32)
-                pvar = pvar.filter(pl.col("row_nr").is_in(variant_idxs))
+                pvar = pvar.filter(pl.col("index").is_in(variant_idxs))
 
             log.info(f"Reading {filename_noext}.psam")
 
@@ -124,8 +129,8 @@ class PGENReader(SNPBaseReader):
                 filename_noext + ".psam",
                 separator='\t',
                 has_header=psam_has_header,
-                new_columns=None if psam_has_header else ["FID", "IID", "PAT", "MAT", "SEX", "PHENO1"]
-            )
+                new_columns=None if psam_has_header else ["FID", "IID", "PAT", "MAT", "SEX", "PHENO1"],
+            ).with_row_index()
             if "#IID" in psam.columns:
                 psam = psam.rename({"#IID": "IID"})
             if "#FID" in psam.columns:
@@ -134,14 +139,19 @@ class PGENReader(SNPBaseReader):
             file_num_samples = psam.height
 
             if sample_ids is not None:
-                sample_idxs = psam.filter(pl.col("IID").is_in(sample_ids)).row_nr().to_numpy()
+                sample_idxs = (
+                    psam.filter(pl.col("IID").is_in(sample_ids))
+                    .select("index")
+                    .to_series()
+                    .to_numpy()
+                )
 
             if sample_idxs is None:
                 num_samples = file_num_samples
             else:
                 num_samples = np.size(sample_idxs)
                 sample_idxs = np.array(sample_idxs, dtype=np.uint32)
-                psam = psam.filter(pl.col("row_nr").is_in(sample_idxs))
+                psam = psam.filter(pl.col("index").is_in(sample_idxs))
 
         if "GT" in fields:
             log.info(f"Reading {filename_noext}.pgen")
