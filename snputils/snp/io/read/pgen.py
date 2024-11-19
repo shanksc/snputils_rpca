@@ -107,8 +107,9 @@ class PGENReader(SNPBaseReader):
                         break
                 else:  # if no break
                     pvar_has_header = False
-            pvar = pl.read_csv(
-                pvar_filename,
+
+            pvar = pl.scan_csv(
+                filename_noext + ".pvar",
                 separator='\t',
                 skip_rows=pvar_header_line_num,
                 has_header=pvar_has_header,
@@ -119,20 +120,30 @@ class PGENReader(SNPBaseReader):
                     "ID": pl.String,
                     "REF": pl.String,
                     "ALT": pl.String,
-                }
-            )
-            file_num_variants = pvar.height
+                },
+            ).with_row_index()
+            
+            # since pvar is lazy, the skip_rows operation hasn't materialized
+            # pl.len() will return the length of the pvar + header
+            file_num_variants = pvar.select(pl.len()).collect().item() - pvar_header_line_num
 
             if variant_ids is not None:
-                variant_idxs = pvar.filter(pl.col("ID").is_in(variant_ids)).row_nr().to_numpy()
+                variant_idxs = (
+                    pvar.filter(pl.col("ID").is_in(variant_ids))
+                    .select("index")
+                    .collect()
+                    .to_series()
+                    .to_numpy()
+                )
 
             if variant_idxs is None:
                 num_variants = file_num_variants
                 variant_idxs = np.arange(num_variants, dtype=np.uint32)
+                pvar = pvar.collect()
             else:
                 num_variants = np.size(variant_idxs)
                 variant_idxs = np.array(variant_idxs, dtype=np.uint32)
-                pvar = pvar.filter(pl.col("row_nr").is_in(variant_idxs))
+                pvar = pvar.filter(pl.col("index").is_in(variant_idxs)).collect()
 
             log.info(f"Reading {filename_noext}.psam")
 
@@ -144,8 +155,8 @@ class PGENReader(SNPBaseReader):
                 filename_noext + ".psam",
                 separator='\t',
                 has_header=psam_has_header,
-                new_columns=None if psam_has_header else ["FID", "IID", "PAT", "MAT", "SEX", "PHENO1"]
-            )
+                new_columns=None if psam_has_header else ["FID", "IID", "PAT", "MAT", "SEX", "PHENO1"],
+            ).with_row_index()
             if "#IID" in psam.columns:
                 psam = psam.rename({"#IID": "IID"})
             if "#FID" in psam.columns:
@@ -154,14 +165,19 @@ class PGENReader(SNPBaseReader):
             file_num_samples = psam.height
 
             if sample_ids is not None:
-                sample_idxs = psam.filter(pl.col("IID").is_in(sample_ids)).row_nr().to_numpy()
+                sample_idxs = (
+                    psam.filter(pl.col("IID").is_in(sample_ids))
+                    .select("index")
+                    .to_series()
+                    .to_numpy()
+                )
 
             if sample_idxs is None:
                 num_samples = file_num_samples
             else:
                 num_samples = np.size(sample_idxs)
                 sample_idxs = np.array(sample_idxs, dtype=np.uint32)
-                psam = psam.filter(pl.col("row_nr").is_in(sample_idxs))
+                psam = psam.filter(pl.col("index").is_in(sample_idxs))
 
         if "GT" in fields:
             log.info(f"Reading {filename_noext}.pgen")
