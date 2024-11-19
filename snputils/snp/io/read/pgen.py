@@ -87,7 +87,7 @@ class PGENReader(SNPBaseReader):
                         break
                 else:  # if no break
                     pvar_has_header = False
-            pvar = pl.read_csv(
+            pvar = pl.scan_csv(
                 filename_noext + ".pvar",
                 separator='\t',
                 skip_rows=pvar_header_line_num,
@@ -101,12 +101,16 @@ class PGENReader(SNPBaseReader):
                     "ALT": pl.String,
                 },
             ).with_row_index()
-            file_num_variants = pvar.height
+            
+            # since pvar is lazy, the skip_rows operation hasn't materialized
+            # pl.len() will return the length of the pvar + header
+            file_num_variants = pvar.select(pl.len()).collect().item() - pvar_header_line_num
 
             if variant_ids is not None:
                 variant_idxs = (
                     pvar.filter(pl.col("ID").is_in(variant_ids))
                     .select("index")
+                    .collect()
                     .to_series()
                     .to_numpy()
                 )
@@ -117,7 +121,7 @@ class PGENReader(SNPBaseReader):
             else:
                 num_variants = np.size(variant_idxs)
                 variant_idxs = np.array(variant_idxs, dtype=np.uint32)
-                pvar = pvar.filter(pl.col("index").is_in(variant_idxs))
+                pvar = pvar.filter(pl.col("index").is_in(variant_idxs)).collect()
 
             log.info(f"Reading {filename_noext}.psam")
 
