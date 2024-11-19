@@ -38,7 +38,8 @@ dependencies = [
     "kaleido",
     "nbformat",
     "pong",
-    "adjustText"
+    "adjustText",
+    "zstandard",
 ]
 
 [project.optional-dependencies]
