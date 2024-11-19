@@ -20,7 +20,7 @@ class MSPWriter(LAIBaseWriter):
         """
         Args:
             laiobj (LocalAncestryObject):
-                A local ancestry object instance.
+                A LocalAncestryObject instance.
             file (str or pathlib.Path): 
                 Path to the file where the data will be saved. It should end with `.msp` or `.msp.tsv`. 
                 If the provided path does not have one of these extensions, the `.msp` extension will be appended.
@@ -35,7 +35,7 @@ class MSPWriter(LAIBaseWriter):
 
         Returns:
             **LocalAncestryObject:** 
-                A local ancestry object instance.
+                A LocalAncestryObject instance.
         """
         return self.__laiobj
 

@@ -348,22 +348,65 @@ class GlobalAncestryObject(AncestryObject):
                     f"Number of unique ancestry labels must be less than or equal to {self.n_ancestries}; got {num_unique_ancestries} unique labels."
                 )
 
-    def save(self, file_prefix: Union[str, Path]) -> None:
+    def save(self, file: Union[str, Path]) -> None:
         """
-        Save the data stored in `self` into multiple ADMIXTURE files:
+        Save the data stored in `self` to a specified file or set of files.
 
-            - Q matrix file: `<file_prefix>.<n_ancestries>.Q`.
-            - P matrix file: `<file_prefix>.<n_ancestries>.P`.
-            - Sample IDs file: `<file_prefix>.sample_ids.txt` (if sample IDs are available).
-            - SNP IDs file: `<file_prefix>.snp_ids.txt` (if SNP IDs are available).
-            - Ancestry file: `<file_prefix>.map` (if ancestries information is available).
+        The format of the saved file(s) is determined by the file extension provided in the `file` 
+        argument. If the extension is `.pkl`, the object is serialized as a pickle file. Otherwise, 
+        the file is treated as a prefix for saving ADMIXTURE files.
 
+        **Supported formats:**
+
+        - `.pkl`: Pickle format for saving `self` in serialized form.
+        - Any other extension or no extension: Treated as a prefix for ADMIXTURE files.
+
+        Args:
+            file (str or pathlib.Path): 
+                Path to the file where the data will be saved. If the extension is `.pkl`, the object
+                is serialized. Otherwise, it is treated as a prefix for ADMIXTURE files.
+        """
+        path = Path(file)
+        suffix = path.suffix.lower()
+
+        if suffix == '.pkl':
+            self.save_pickle(path)
+        else:
+            self.save_admixture(path)
+
+    def save_admixture(self, file_prefix: Union[str, Path]) -> None:
+        """
+        Save the data stored in `self` into multiple ADMIXTURE files.
+        If the file already exists, it will be overwritten.
+
+        **Output files:**
+
+        - `<file_prefix>.K.Q`: Q matrix file. The file uses space (' ') as the delimiter.
+        - `<file_prefix>.K.P`: P matrix file. The file uses space (' ') as the delimiter.
+        - `<file_prefix>.sample_ids.txt`: Sample IDs file (if sample IDs are available).
+        - `<file_prefix>.snp_ids.txt`: SNP IDs file (if SNP IDs are available).
+        - `<file_prefix>.map`: Ancestry file (if ancestries information is available).
+        
         Args:
             file_prefix (str or pathlib.Path): 
                 The base prefix for output file names, including directory path but excluding file extensions. 
                 The prefix is used to generate specific file names for each output, with file-specific 
-                suffixes appended as described above (e.g., `file_prefix.K.Q` for the Q matrix file).
+                suffixes appended as described above (e.g., `file_prefix.n_ancestries.Q` for the Q matrix file).
         """
         from snputils.ancestry.io.wide.write.admixture import AdmixtureWriter
 
         AdmixtureWriter(self, file_prefix).write()
+
+    def save_pickle(self, file: Union[str, Path]) -> None:
+        """
+        Save `self` in serialized form to a `.pkl` file.
+        If the file already exists, it will be overwritten.
+
+        Args:
+            file (str or pathlib.Path): 
+                Path to the file where the data will be saved. It should end with `.pkl`. 
+                If the provided path does not have this extension, it will be appended.
+        """
+        import pickle
+        with open(file, 'wb') as file:
+            pickle.dump(self, file)
