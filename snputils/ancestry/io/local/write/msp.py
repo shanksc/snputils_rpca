@@ -2,6 +2,8 @@ import logging
 from pathlib import Path
 from typing import Union
 import pandas as pd
+import numpy as np
+import warnings
 
 from .base import LAIBaseWriter
 from snputils.ancestry.genobj.local import LocalAncestryObject
@@ -59,14 +61,14 @@ class MSPWriter(LAIBaseWriter):
         The output `.msp` file will contain local ancestry assignments for each haplotype across genomic windows.
         Each row corresponds to a genomic window and includes the following columns:
 
-        - `#chm`: Chromosome numbers corresponding to each genomic window (if available).
-        - `spos`: Start physical position for each window (if available).
-        - `epos`: End physical position for each window (if available).
-        - `sgpos`: Start centimorgan position for each window (if available).
-        - `egpos`: End centimorgan position for each window (if available).
-        - `n snps`: Number of SNPs in each genomic window (if available).
-        - `SampleID.0`: Local ancestry for the first haplotype of the sample for each window (if available).
-        - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window (if available).
+        - `#chm`: Chromosome numbers corresponding to each genomic window.
+        - `spos`: Start physical position for each window.
+        - `epos`: End physical position for each window.
+        - `sgpos`: Start centimorgan position for each window.
+        - `egpos`: End centimorgan position for each window.
+        - `n snps`: Number of SNPs in each genomic window.
+        - `SampleID.0`: Local ancestry for the first haplotype of the sample for each window.
+        - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window.
         """
         log.info(f"LAI object contains: {self.laiobj.n_samples} samples, {self.laiobj.n_ancestries} ancestries.")
 
@@ -76,97 +78,85 @@ class MSPWriter(LAIBaseWriter):
         # Append '.msp' extension if not already present
         if not self.file.name.endswith(valid_extensions):
             self.file = self.file.with_name(self.file.name + '.msp')
+
+        # Check if file already exists
+        if self.file.exists():
+            warnings.warn(f"File '{self.file}' already exists and will be overwritten.")
+
+        # Compute the number of windows and haplotypes
+        n_windows = self.laiobj.n_windows
+        n_haplotypes = self.laiobj.n_haplotypes
+
+        # Initialize attributes with NaN where they are None
+        chromosomes = self.laiobj.chromosomes if self.laiobj.chromosomes is not None else np.full(n_windows, np.nan)
+        physical_pos = self.laiobj.physical_pos if self.laiobj.physical_pos is not None else np.full((n_windows, 2), np.nan)
+        centimorgan_pos = self.laiobj.centimorgan_pos if self.laiobj.centimorgan_pos is not None else np.full((n_windows, 2), np.nan)
+        window_sizes = self.laiobj.window_sizes if self.laiobj.window_sizes is not None else np.full(n_windows, np.nan)
         
-        # Initialize the columns and data dictionary for the DataFrame
-        columns = []
-        lai_dic = {}
+        haplotypes = self.laiobj.haplotypes
+        if haplotypes is None:
+            # Generate haplotypes from samples or default identifiers
+            if self.laiobj.samples is not None:
+                haplotypes = [f"{sample}.{i}" for sample in self.laiobj.samples for i in range(2)]
+                warnings.warn(
+                    "Haplotype data is missing. Haplotypes have been automatically generated "
+                    "from the provided sample identifiers."
+                )
+            else:
+                haplotypes = [f"sample_{i//2}.{i%2}" for i in range(n_haplotypes)]
+                warnings.warn(
+                    "Haplotype data and sample identifiers are missing. Default haplotype identifiers have been generated "
+                    "as `sample_<index>.0` and `sample_<index>.1`."
+                )
 
-        # Add chromosome numbers if available
-        if self.laiobj.chromosomes is not None:
-            lai_dic["#chm"] = self.laiobj.chromosomes
-            columns.append("#chm")
-        else:
-            log.warning("Chromosome numbers ('#chm') are not available in the LAI object.")
+        # Prepare columns for the DataFrame
+        columns = ["spos", "epos", "sgpos", "egpos", "n snps"]
+        lai_dic = {
+            "#chm": chromosomes,
+            "spos": physical_pos[:, 0],
+            "epos": physical_pos[:, 1],
+            "sgpos": centimorgan_pos[:, 0],
+            "egpos": centimorgan_pos[:, 1],
+            "n snps": window_sizes,
+        }
 
-        # Add physical positions if available
-        if self.laiobj.physical_pos is not None:
-            lai_dic["spos"] = self.laiobj.physical_pos[:, 0]
-            lai_dic["epos"] = self.laiobj.physical_pos[:, 1]
-            columns.extend(["spos", "epos"])
-        else:
-            log.warning("Physical positions ('spos' and 'epos') are not available in the LAI object.")
-
-        # Add genetic positions if available
-        if self.laiobj.centimorgan_pos is not None:
-            lai_dic["sgpos"] = self.laiobj.centimorgan_pos[:, 0]
-            lai_dic["egpos"] = self.laiobj.centimorgan_pos[:, 1]
-            columns.extend(["sgpos", "egpos"])
-        else:
-            log.warning("Genetic positions ('sgpos' and 'egpos') are not available in the LAI object.")
-
-        # Add window sizes if available
-        if self.laiobj.window_sizes is not None:
-            lai_dic["n snps"] = self.laiobj.window_sizes
-            columns.append("n snps")
-        else:
-            log.warning("Window sizes ('n snps') are not available in the LAI object.")
-
-        # Add haplotype-level LAI data if available
-        if self.laiobj.samples is not None and self.laiobj.lai is not None:
-            ilai = 0
-            for ID in self.laiobj.samples:
-                # First haplotype
-                if ilai < self.laiobj.lai.shape[1]:
-                    lai_dic[f"{ID}.0"] = self.laiobj.lai[:, ilai]
-                    columns.append(f"{ID}.0")
-                else:
-                    log.warning(f"Missing LAI data for {ID}.0")
-                # Second haplotype
-                if ilai + 1 < self.laiobj.lai.shape[1]:
-                    lai_dic[f"{ID}.1"] = self.laiobj.lai[:, ilai + 1]
-                    columns.append(f"{ID}.1")
-                else:
-                    log.warning(f"Missing LAI data for {ID}.1")
-                # Move to the next pair of haplotypes
-                ilai += 2
-        else:
-            log.warning("Sample IDs or LAI data are not available in the LAI object.")
-
-        # Check if we have any data to write
-        if not columns:
-            raise ValueError("No data available to write to the MSP file.")
+        # Populate the dictionary with haplotype data
+        for ilai, haplotype in enumerate(haplotypes):
+            lai_dic[haplotype] = self.laiobj.lai[:, ilai]
+            columns.append(haplotype)
+            
+        # Check if DataFrame is empty
+        if len(lai_dic["#chm"]) == 0:
+            raise ValueError("No data to write: all columns are empty or missing.")
 
         # Create a DataFrame from the dictionary containing all data
-        lai_df = pd.DataFrame(lai_dic, columns=columns)
+        lai_df = pd.DataFrame(lai_dic)
 
-        log.info(f"Writing '{self.file}'...")
+        log.info(f"Writing MSP file to '{self.file}'...")
 
-        # Save the DataFrame to the .msp file in tab-separated format without header and index
+        # Save the DataFrame to the .msp file in tab-separated format
         lai_df.to_csv(self.file, sep="\t", index=False, header=False)
         
-        # Construct the header line for the output file containing the column headers
-        header_line = "\t".join(columns)
+        # Construct the second line for the output file containing the column headers
+        second_line = "#chm" + "\t" + "\t".join(columns)
         
-        # Open the file for reading and prepend the header lines
-        with open(self.file, "r+") as f:
-            content = f.read()
-            f.seek(0, 0)
+        # If an ancestry map is available, prepend it to the output file
+        if self.laiobj.ancestry_map is not None:
+            ancestries_codes = list(self.laiobj.ancestry_map.keys()) # Get corresponding codes
+            ancestries = list(self.laiobj.ancestry_map.values()) # Get ancestry names
+            
+            # Create the first line for the ancestry information, detailing subpopulation codes
+            first_line = "#Subpopulation order/codes: " + "\t".join(
+                f"{a}={ancestries_codes[ai]}" for ai, a in enumerate(ancestries)
+            )
 
-            # If an ancestry map is available, include it as the first line
-            if self.laiobj.ancestry_map is not None:
-                ancestries_codes = list(self.laiobj.ancestry_map.keys())  # Get ancestry codes
-                ancestries = list(self.laiobj.ancestry_map.values())      # Get ancestry names
+            # Open the file for reading and prepend the first line       
+            with open(self.__file, "r+") as f:
+                content = f.read()
+                f.seek(0,0)
+                f.write(first_line.rstrip('\r\n') + '\n' + second_line + '\n' + content)
 
-                # Create the first line with ancestry mapping
-                first_line = "#Subpopulation order/codes: " + "\t".join(
-                    f"{ancestries[ai]}={ancestries_codes[ai]}" for ai in range(len(ancestries))
-                )
-                f.write(first_line.rstrip('\r\n') + '\n' + header_line + '\n' + content)
-            else:
-                # If no ancestry map, only add the header line
-                f.write(header_line + '\n' + content)
-
-        log.info(f"Finished writing '{self.file}'.")
+        log.info(f"Finished writing MSP file to '{self.file}'.")
 
         return None
 

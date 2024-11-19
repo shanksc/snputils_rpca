@@ -86,6 +86,20 @@ class MSPReader(LAIBaseReader):
 
         return ancestry_map
 
+    def _replace_nan_with_none(self, array: Optional[np.ndarray]) -> Optional[np.ndarray]:
+        """
+        Replace arrays that are fully NaN with `None`.
+
+        Args:
+            array (np.ndarray): Array to check.
+
+        Returns:
+            Optional[np.ndarray]: Returns `None` if the array is fully NaN, otherwise returns the original array.
+        """
+        if array is not None and np.isnan(array).all():
+            return None
+        return array
+
     def read(self) -> 'LocalAncestryObject':
         """
         Read data from the provided `.msp` or `msp.tsv` `file` and construct a 
@@ -97,11 +111,11 @@ class MSPReader(LAIBaseReader):
         Each row should correspond to a genomic window and include the following columns:
 
         - `#chm`: Chromosome numbers corresponding to each genomic window.
-        - `spos`: Start physical position for each window (optional).
-        - `epos`: End physical position for each window (optional).
-        - `sgpos`: Start centimorgan position for each window (optional).
-        - `egpos`: End centimorgan position for each window (optional).
-        - `n snps`: Number of SNPs in each genomic window (optional).
+        - `spos`: Start physical position for each window.
+        - `epos`: End physical position for each window.
+        - `sgpos`: Start centimorgan position for each window.
+        - `egpos`: End centimorgan position for each window.
+        - `n snps`: Number of SNPs in each genomic window.
         - `SampleID.0`: Local ancestry for the first haplotype of the sample for each window.
         - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window.
 
@@ -204,6 +218,12 @@ class MSPReader(LAIBaseReader):
                 "Ancestry map not found. It is recommended to provide an .msp file that contains the ancestry "
                 "map as a comment in the first line."
             )
+
+        # Replace fully NaN attributes with None
+        window_sizes = self._replace_nan_with_none(window_sizes)
+        centimorgan_pos = self._replace_nan_with_none(centimorgan_pos)
+        chromosomes = self._replace_nan_with_none(chromosomes)
+        physical_pos = self._replace_nan_with_none(physical_pos)
 
         return LocalAncestryObject(
             haplotypes=haplotypes,
