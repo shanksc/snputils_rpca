@@ -84,5 +84,7 @@ passenv =
     GITHUB_ACTIONS
 extras =
     testing
+    gpu
+    docs
 commands = python -m pytest -vv --color=yes --cov=snputils --cov-report=xml
 """
