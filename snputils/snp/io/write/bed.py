@@ -83,7 +83,7 @@ class BEDWriter:
         bim_file['cm'] = 0  # TODO: read, save and write too if available?
         log.warning("The .bim file is being saved with 0 cM values.")
         bim_file['pos'] = self.__snpobj.variants_pos
-        bim_file['a0'] = self.__snpobj.variants_alt[:, 0]
+        bim_file['a0'] = self.__snpobj.variants_alt
         bim_file['a1'] = self.__snpobj.variants_ref
 
         # Save .bim file
