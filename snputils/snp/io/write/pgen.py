@@ -36,7 +36,6 @@ class PGENWriter:
         file_extensions = (".pgen", ".psam", ".pvar", ".pvar.zst")
         if self.__filename.suffix in file_extensions:
             self.__filename = self.__filename.with_suffix('')
-        self.__file_extension = ".pgen"
 
         self.write_pvar(vzs=vzs)
         self.write_psam()
@@ -113,7 +112,7 @@ class PGENWriter:
             flat_genotypes = self.__snpobj.calldata_gt
 
         with pg.PgenWriter(
-            filename=str(self.__filename).encode('utf-8'),
+            filename=f"{self.__filename}.pgen".encode('utf-8'),
             sample_ct=num_samples,
             variant_ct=num_variants,
             hardcall_phase_present=phased,
