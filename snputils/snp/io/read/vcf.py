@@ -75,6 +75,7 @@ class VCFReader(SNPBaseReader):
             fills=fills,
             region=region,
             samples=samples,
+            alt_number=1,
         )
         assert vcf_dict is not None  # suppress Flake8 warning
 
@@ -86,7 +87,7 @@ class VCFReader(SNPBaseReader):
             calldata_gt=genotypes,
             samples=vcf_dict["samples"],
             variants_ref=vcf_dict["variants/REF"],
-            variants_alt=vcf_dict["variants/ALT"][:, 0],
+            variants_alt=vcf_dict["variants/ALT"],
             variants_chrom=vcf_dict["variants/CHROM"],
             variants_filter_pass=vcf_dict["variants/FILTER_PASS"],
             variants_id=vcf_dict["variants/ID"],
