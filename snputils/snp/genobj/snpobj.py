@@ -36,7 +36,7 @@ class SNPObject:
             variants_ref (array of shape (n_snps,), optional): 
                 An array containing the reference allele for each SNP.
             variants_alt (array of shape (n_snps,), optional): 
-                An array containing the alternate alleles for each SNP.
+                An array containing the alternate allele for each SNP.
             variants_chrom (array of shape (n_snps,), optional): 
                 An array containing the chromosome for each SNP.
             variants_filter_pass (array of shape (n_snps,), optional): 
@@ -139,7 +139,7 @@ class SNPObject:
         Retrieve `variants_alt`.
 
         Returns:
-            **array of shape (n_snps,):** An array containing the alternate alleles for each SNP.
+            **array of shape (n_snps,):** An array containing the alternate allele for each SNP.
         """
         return self.__variants_alt
 
