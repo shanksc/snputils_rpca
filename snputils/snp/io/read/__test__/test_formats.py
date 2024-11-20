@@ -121,6 +121,10 @@ def test_vcf_pgen_variants_pos(snpobj_vcf, snpobj_pgen):
     assert np.array_equal(snpobj_vcf.variants_pos, snpobj_pgen.variants_pos)
 
 
+def test_variants_alt_shape(snpobj_vcf):
+    assert snpobj_vcf.variants_alt.shape == (snpobj_vcf.n_snps,)
+
+
 # Compressed VCF
 def test_vcf_gz(data_path):
     pass  # TODO
