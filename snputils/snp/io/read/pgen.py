@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List, Optional
 
 import numpy as np
@@ -69,26 +70,46 @@ class PGENReader(SNPBaseReader):
         only_read_pgen = fields == ["GT"] and variant_idxs is None and sample_idxs is None
 
         filename_noext = str(self.filename)
-        if filename_noext[-5:].lower() in (".pgen", ".pvar", ".psam"):
-            filename_noext = filename_noext[:-5]
+        for ext in [".pgen", ".pvar", ".pvar.zst", ".psam"]:
+            if filename_noext.endswith(ext):
+                filename_noext = filename_noext[:-len(ext)]
+                break
 
         if only_read_pgen:
             file_num_samples = None  # Not needed for pgen
             file_num_variants = None  # Not needed
         else:
-            log.info(f"Reading {filename_noext}.pvar")
+            pvar_extensions = [".pvar", ".pvar.zst"]
+            pvar_filename = None
+            for ext in pvar_extensions:
+                possible_pvar = filename_noext + ext
+                if os.path.exists(possible_pvar):
+                    pvar_filename = possible_pvar
+                    break
+            if pvar_filename is None:
+                raise FileNotFoundError(f"No .pvar or .pvar.zst file found for {filename_noext}")
+
+            log.info(f"Reading {pvar_filename}")
+
+            def open_textfile(filename):
+                if filename.endswith('.zst'):
+                    import zstandard as zstd
+                    return zstd.open(filename, 'rt')
+                else:
+                    return open(filename, 'rt')
 
             pvar_has_header = True
             pvar_header_line_num = 0
-            with open(filename_noext + ".pvar") as file:
+            with open_textfile(pvar_filename) as file:
                 for line_num, line in enumerate(file):
                     if line.startswith("#CHROM"):
                         pvar_header_line_num = line_num
                         break
                 else:  # if no break
                     pvar_has_header = False
+
             pvar = pl.scan_csv(
-                filename_noext + ".pvar",
+                pvar_filename,
                 separator='\t',
                 skip_rows=pvar_header_line_num,
                 has_header=pvar_has_header,
@@ -101,7 +122,7 @@ class PGENReader(SNPBaseReader):
                     "ALT": pl.String,
                 },
             ).with_row_index()
-            
+
             # since pvar is lazy, the skip_rows operation hasn't materialized
             # pl.len() will return the length of the pvar + header
             file_num_variants = pvar.select(pl.len()).collect().item() - pvar_header_line_num

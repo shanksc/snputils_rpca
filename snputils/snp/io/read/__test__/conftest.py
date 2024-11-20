@@ -63,20 +63,21 @@ def data_path():
                 )
 
     # Generate bed and pgen formats
-    for fmt in ["bed", "pgen"]:
+    for fmt in ["bed", "pgen", "pgen_zst"]:
         fmt_path = data_path / fmt
         os.makedirs(fmt_path, exist_ok=True)
         fmt_file = fmt_path / "subset"
         if not fmt_file.exists():
             print(f"Generating {fmt} format...")
+            make_fmt = "--make-pgen vzs" if fmt == "pgen_zst" else f"--make-{fmt.split('_')[0]}"
             subprocess.run(
                 [
                     "./plink2",
                     "--vcf",
                     subset_vcf,
-                    f"--make-{fmt}",
+                    *make_fmt.split(),
                     "--out",
-                    fmt + "/subset",
+                    f"{fmt}/subset",
                 ],
                 cwd=str(data_path),
             )

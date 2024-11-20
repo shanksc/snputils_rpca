@@ -3,6 +3,7 @@ import numpy as np
 import polars as pl
 import pgenlib as pg
 from pathlib import Path
+import zstandard as zstd
 
 from snputils.snp.genobj.snpobj import SNPObject
 
@@ -18,35 +19,42 @@ class PGENWriter:
         """
         Initializes the PGENWriter instance.
 
-        Parameters
-        ----------
-        snpobj : SNPObject
-            The SNPObject containing genotype data to be written.
-        file : str
-            Base path for the output files (excluding extension).
-        TODO: add support for parallel writing by chromosome.
+        Args:
+            snpobj (SNPObject): The SNPObject containing genotype data to be written.
+            filename (str): Base path for the output files (excluding extension).
         """
         self.__snpobj = snpobj
         self.__filename = Path(filename)
 
-    def write(self):
+    def write(self, vzs: bool = False):
         """
         Writes the SNPObject data to .pgen, .psam, and .pvar files.
+
+        Args:
+            vzs (bool, optional): If True, compresses the .pvar file using zstd and saves it as .pvar.zst. Defaults to False.
         """
-        file_extensions = (".pgen", ".psam", ".pvar")
+        file_extensions = (".pgen", ".psam", ".pvar", ".pvar.zst")
         if self.__filename.suffix in file_extensions:
             self.__filename = self.__filename.with_suffix('')
-        self.__file_extension = ".pgen"
 
-        self.write_pvar()
+        self.write_pvar(vzs=vzs)
         self.write_psam()
         self.write_pgen()
 
-    def write_pvar(self):
+    def write_pvar(self, vzs: bool = False):
         """
         Writes variant data to the .pvar file.
+
+        Args:
+            vzs (bool, optional): If True, compresses the .pvar file using zstd and saves it as .pvar.zst. Defaults to False.
         """
-        log.info(f"Writing to {self.__filename}.pvar")
+        output_filename = f"{self.__filename}.pvar"
+        if vzs:
+            output_filename += ".zst"
+            log.info(f"Writing to {output_filename} (compressed)")
+        else:
+            log.info(f"Writing to {output_filename}")
+
         df = pl.DataFrame(
             {
                 "#CHROM": self.__snpobj.variants_chrom,
@@ -59,7 +67,19 @@ class PGENWriter:
             }
         )
         # TODO: add header to the .pvar file, if not it's lost
-        df.write_csv(f"{self.__filename}.pvar", separator="\t")
+
+        # Write the DataFrame to a CSV string
+        csv_data = df.write_csv(None, separator="\t")
+
+        if vzs:
+            # Compress the CSV data using zstd
+            cctx = zstd.ZstdCompressor()
+            compressed_data = cctx.compress(csv_data.encode('utf-8'))
+            with open(output_filename, 'wb') as f:
+                f.write(compressed_data)
+        else:
+            with open(output_filename, 'w') as f:
+                f.write(csv_data)
 
     def write_psam(self):
         """
@@ -89,10 +109,10 @@ class PGENWriter:
             )
         else:
             num_variants, num_samples = self.__snpobj.calldata_gt.shape
-            flat_genotypes = self.__snpobj.__calldata_gt
+            flat_genotypes = self.__snpobj.calldata_gt
 
         with pg.PgenWriter(
-            filename=str(self.__filename).encode('utf-8'),
+            filename=f"{self.__filename}.pgen".encode('utf-8'),
             sample_ct=num_samples,
             variant_ct=num_variants,
             hardcall_phase_present=phased,
