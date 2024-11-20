@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "snputils"
-version = "0.2.0"
-description = "SNP utils"
+dynamic = ["version"]  # Version is set by setuptools_scm and determined by the latest git tag
+description = "Process diverse genomes with ease"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "BSD 3-Clause License"}
@@ -38,7 +38,8 @@ dependencies = [
     "kaleido",
     "nbformat",
     "pong",
-    "adjustText"
+    "adjustText",
+    "zstandard",
 ]
 
 [project.optional-dependencies]
@@ -48,6 +49,12 @@ testing = ["tox", "pytest", "pytest-cov"]
 docs = ["pdoc", "torch"]  # pdoc requires to import all the libraries that are imported in the code
 benchmark = ["pytest", "pytest-benchmark", "memory_profiler",
              "pandas-plink", "pysam", "scikit-allel", "sgkit[plink]", "hail", "pysnptools", "Pgenlib", "cyvcf2", "plinkio", "PyVCF3"]
+
+[project.urls]
+"Homepage" = "https://snputils.org"
+"Documentation" = "https://docs.snputils.org"
+"Source Code" = "https://github.com/AI-sandbox/snputils"
+"Issue Tracker" = "https://github.com/AI-sandbox/snputils/issues"
 
 [project.scripts]
 snputils = "snputils.tools.entry:main"
@@ -61,3 +68,23 @@ include = ["snputils*"]
 [tool.mypy]
 python_version = "3.8"
 ignore_missing_imports = true
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py38, py313
+isolated_build=true
+[gh-actions]
+python =
+    3.8: py38
+    3.13: py313
+[testenv]
+passenv =
+    CI
+    GITHUB_ACTIONS
+extras =
+    testing
+    gpu
+    docs
+commands = python -m pytest -vv --color=yes --cov=snputils --cov-report=xml
+"""
