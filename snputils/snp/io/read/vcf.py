@@ -22,7 +22,7 @@ class VCFReader(SNPBaseReader):
         fills: Optional[dict] = None,
         region: Optional[str] = None,
         samples: Optional[List[str]] = None,
-        phased: bool = False,
+        sum_strands: bool = False,
     ) -> SNPObject:
         """
         Read a vcf file into a SNPObject.
@@ -55,13 +55,14 @@ class VCFReader(SNPBaseReader):
             samples: Selection of samples to extract calldata for. If provided, should be
                 a list of strings giving sample identifiers. May also be a list of
                 integers giving indices of selected samples.
-            phased: Whether to store the genotypes as phased.
+            sum_strands: True if the maternal and paternal strands are to be summed together, 
+            False if the strands are to be stored separately.
 
         Returns:
             snpobj: SNPObject containing the data from the vcf file.
-                If phased is True, calldata_gt is stored as a numpy array of shape
+                If sum_strands is False, calldata_gt is stored as a numpy array of shape
                 (num_variants, num_samples, 2) and dtype int8 containing 0, 1.
-                If phased is False, calldata_gt is stored as a numpy array of shape
+                If sum_strands is True, calldata_gt is stored as a numpy array of shape
                 (num_variants, num_samples) and dtype int8 containing 0, 1, 2.
         """
         log.info(f"Reading {self.filename}")
@@ -78,7 +79,7 @@ class VCFReader(SNPBaseReader):
         assert vcf_dict is not None  # suppress Flake8 warning
 
         genotypes = vcf_dict["calldata/GT"].astype(np.int8)
-        if not phased:
+        if sum_strands:
             genotypes = genotypes.sum(axis=2, dtype=np.int8)
 
         snpobj = SNPObject(
@@ -221,7 +222,7 @@ class VCFReaderPolars(SNPBaseReader):
              exclude_fields: Optional[List[str]] = None,
              region: Optional[str] = None,
              samples: Optional[List[str]] = None,
-             phased: Optional[bool] = False) -> SNPObject:
+             sum_strands: Optional[bool] = False) -> SNPObject:
         """
         Read a vcf file into a SNPObject.
 
@@ -244,11 +245,9 @@ class VCFReaderPolars(SNPBaseReader):
             a list of strings giving sample identifiers. May also be a list of
             integers giving indices of selected samples.  If an empty list is provided,
             no samples are extracted.
-        phased: bool, default=False
-            Whether to store the genotypes as phased. If True, `calldata_gt` is
-            a numpy array of shape (num_variants, num_samples, 2) containing 0, 1.
-            If False, `calldata_gt` is a numpy array of shape (num_variants, num_samples)
-            containing 0, 1, 2.
+        sum_strands: bool, default=False
+            True if the maternal and paternal strands are to be summed together, 
+            False if the strands are to be stored separately.
 
         Returns
         -------
@@ -311,8 +310,7 @@ class VCFReaderPolars(SNPBaseReader):
                 # Combine maternal and paternal genotypes
                 genotypes = np.dstack((genotype_maternal, genotype_paternal))
 
-                # Sum genotypes if not phased
-                if not phased:
+                if sum_strands:
                     genotypes = genotypes.sum(axis=2, dtype=np.int8)
 
             # Create a SNPObject with the processed data

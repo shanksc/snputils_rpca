@@ -132,7 +132,7 @@ def test_vcf_gz(data_path):
 
 # PGEN with compressed pvar
 def test_pgen_pvar_zst(data_path, snpobj_pgen):
-    snpobj = PGENReader(data_path + "/pgen_zst/subset").read(phased=True)
+    snpobj = PGENReader(data_path + "/pgen_zst/subset").read(sum_strands=False)
     assert np.array_equal(snpobj_pgen.calldata_gt, snpobj.calldata_gt)
     assert np.array_equal(snpobj_pgen.variants_ref, snpobj.variants_ref)
     assert np.array_equal(snpobj_pgen.variants_alt, snpobj.variants_alt)

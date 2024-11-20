@@ -287,19 +287,21 @@ class SNPObject:
         return self.variants_chrom[np.sort(idx)]
 
     @property
-    def is_phased(self) -> bool:
+    def are_strands_summed(self) -> bool:
         """
-        Retrieve `is_phased`.
+        Retrieve `are_strands_summed`.
         
         Returns:
-            **bool:** True if the genotype data in `calldata_gt` has shape 
-            `(n_samples, n_snps, 2)`, False if it has shape `(n_samples, n_snps)`.
+            **bool:** 
+                True if the maternal and paternal strands have been summed together, which is indicated by 
+                `calldata_gt` having shape `(n_samples, n_snps)`. False if the strands are stored separately, 
+                indicated by `calldata_gt` having shape `(n_samples, n_snps, 2)`.
         """
         if self.calldata_gt is None:
             warnings.warn("Genotype data `calldata_gt` is None.")
             return None
         
-        return self.calldata_gt.ndim == 3
+        return self.calldata_gt.ndim == 2
 
     def copy(self) -> 'SNPObject':
         """
@@ -1077,29 +1079,29 @@ class SNPObject:
         # Log statistics on matching alleles if enabled
         if log_stats:
             matching_ref = np.sum(self['variants_ref'][query_idx] == snpobj['variants_ref'][reference_idx])
-            matching_alt = np.sum(self['variants_alt'][query_idx, 0] == snpobj['variants_alt'][reference_idx, 0])
-            ambiguous = np.sum(self['variants_ref'][query_idx] == self['variants_alt'][query_idx, 0])
+            matching_alt = np.sum(self['variants_alt'][query_idx] == snpobj['variants_alt'][reference_idx])
+            ambiguous = np.sum(self['variants_ref'][query_idx] == self['variants_alt'][query_idx])
             log.info(f"Matching reference alleles (ref=ref'): {matching_ref}, Matching alternate alleles (alt=alt'): {matching_alt}.")
             log.info(f"Number of ambiguous alleles (ref=alt): {ambiguous}.")
 
         # Identify indices where `ref` and `alt` alleles are swapped
         if not check_complement:
             # Simple exact match for swapped alleles
-            swapped_ref = (self['variants_ref'][query_idx] == snpobj['variants_alt'][reference_idx, 0])
-            swapped_alt = (self['variants_alt'][query_idx, 0] == snpobj['variants_ref'][reference_idx])
+            swapped_ref = (self['variants_ref'][query_idx] == snpobj['variants_alt'][reference_idx])
+            swapped_alt = (self['variants_alt'][query_idx] == snpobj['variants_ref'][reference_idx])
         else:
             # Check for swapped or complementary-swapped alleles
             swapped_ref = (
-                (self['variants_ref'][query_idx] == snpobj['variants_alt'][reference_idx, 0]) |
-                (np.vectorize(get_complement)(self['variants_ref'][query_idx]) == snpobj['variants_alt'][reference_idx, 0])
+                (self['variants_ref'][query_idx] == snpobj['variants_alt'][reference_idx]) |
+                (np.vectorize(get_complement)(self['variants_ref'][query_idx]) == snpobj['variants_alt'][reference_idx])
             )
             swapped_alt = (
-                (self['variants_alt'][query_idx, 0] == snpobj['variants_ref'][reference_idx]) |
-                (np.vectorize(get_complement)(self['variants_alt'][query_idx, 0]) == snpobj['variants_ref'][reference_idx])
+                (self['variants_alt'][query_idx] == snpobj['variants_ref'][reference_idx]) |
+                (np.vectorize(get_complement)(self['variants_alt'][query_idx]) == snpobj['variants_ref'][reference_idx])
             )
 
         # Filter out ambiguous variants where `ref` and `alt` alleles match (ref=alt)
-        not_ambiguous = (self['variants_ref'][query_idx] != self['variants_alt'][query_idx, 0])
+        not_ambiguous = (self['variants_ref'][query_idx] != self['variants_alt'][query_idx])
 
         # Indices in `self` of flipped variants
         flip_idx_query = query_idx[swapped_ref & swapped_alt & not_ambiguous]
@@ -1108,18 +1110,18 @@ class SNPObject:
         if len(flip_idx_query) > 0:
             log.info(f'Correcting {len(flip_idx_query)} variant flips...')
 
-            temp_alts = self['variants_alt'][flip_idx_query, 0]
+            temp_alts = self['variants_alt'][flip_idx_query]
             temp_refs = self['variants_ref'][flip_idx_query]
 
             # Correct the variant flips based on whether the operation is in-place or not
             if inplace:
-                self['variants_alt'][flip_idx_query, 0] = temp_refs
+                self['variants_alt'][flip_idx_query] = temp_refs
                 self['variants_ref'][flip_idx_query] = temp_alts
                 self['calldata_gt'][flip_idx_query] = 1 - self['calldata_gt'][flip_idx_query]
                 return None
             else:
                 snpobj = self.copy()
-                snpobj['variants_alt'][flip_idx_query, 0] = temp_refs
+                snpobj['variants_alt'][flip_idx_query] = temp_refs
                 snpobj['variants_ref'][flip_idx_query] = temp_alts
                 snpobj['calldata_gt'][flip_idx_query] = 1 - snpobj['calldata_gt'][flip_idx_query]
                 return snpobj
@@ -1167,7 +1169,7 @@ class SNPObject:
 
         # Vectorized comparison of `ref` and `alt` alleles
         ref_mismatch = self['variants_ref'][query_idx] != snpobj['variants_ref'][reference_idx]
-        alt_mismatch = self['variants_alt'][query_idx, 0] != snpobj['variants_alt'][reference_idx, 0]
+        alt_mismatch = self['variants_alt'][query_idx] != snpobj['variants_alt'][reference_idx]
         mismatch_mask = ref_mismatch | alt_mismatch
 
         # Identify indices in `self` of mismatching variants
