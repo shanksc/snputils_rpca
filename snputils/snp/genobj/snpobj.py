@@ -1,5 +1,5 @@
 import logging
-import pathlib
+from pathlib import Path
 import numpy as np
 import copy
 import warnings
@@ -35,7 +35,7 @@ class SNPObject:
                 An array containing unique sample identifiers.
             variants_ref (array of shape (n_snps,), optional): 
                 An array containing the reference allele for each SNP.
-            variants_alt (array of shape (n_snps, 3), optional): 
+            variants_alt (array of shape (n_snps,), optional): 
                 An array containing the alternate alleles for each SNP.
             variants_chrom (array of shape (n_snps,), optional): 
                 An array containing the chromosome for each SNP.
@@ -139,7 +139,7 @@ class SNPObject:
         Retrieve `variants_alt`.
 
         Returns:
-            **array of shape (n_snps, 3):** An array containing the alternate alleles for each SNP.
+            **array of shape (n_snps,):** An array containing the alternate alleles for each SNP.
         """
         return self.__variants_alt
 
@@ -979,10 +979,10 @@ class SNPObject:
             If `inplace=True`, modifies `self` in place and returns None.
         """
         # Identify strand-ambiguous SNPs using vectorized comparisons
-        is_AT = (self['variants_ref'] == 'A') & (self['variants_alt'][:, 0] == 'T')
-        is_TA = (self['variants_ref'] == 'T') & (self['variants_alt'][:, 0] == 'A')
-        is_CG = (self['variants_ref'] == 'C') & (self['variants_alt'][:, 0] == 'G')
-        is_GC = (self['variants_ref'] == 'G') & (self['variants_alt'][:, 0] == 'C')
+        is_AT = (self['variants_ref'] == 'A') & (self['variants_alt'] == 'T')
+        is_TA = (self['variants_ref'] == 'T') & (self['variants_alt'] == 'A')
+        is_CG = (self['variants_ref'] == 'C') & (self['variants_alt'] == 'G')
+        is_GC = (self['variants_ref'] == 'G') & (self['variants_alt'] == 'C')
 
         # Create a combined mask for all ambiguous variants
         ambiguous_mask = is_AT | is_TA | is_CG | is_GC
@@ -1235,7 +1235,7 @@ class SNPObject:
         """
         if inplace:
             if self.variants_alt is not None:
-                self.variants_alt[:, 0][self.variants_alt[:, 0] == ''] = '.'
+                self.variants_alt[self.variants_alt == ''] = '.'
             if self.variants_ref is not None:
                 self.variants_ref[self.variants_ref == ''] = '.'
             if self.variants_qual is not None:
@@ -1252,7 +1252,7 @@ class SNPObject:
         else:
             snpobj = self.copy()
             if snpobj.variants_alt is not None:
-                snpobj.variants_alt[:, 0][snpobj.variants_alt[:, 0] == ''] = '.'
+                snpobj.variants_alt[snpobj.variants_alt == ''] = '.'
             if snpobj.variants_ref is not None:
                 snpobj.variants_ref[snpobj.variants_ref == ''] = '.'
             if snpobj.variants_qual is not None:
@@ -1266,12 +1266,14 @@ class SNPObject:
                 snpobj.variants_id[snpobj.variants_id == ''] = '.'
             return snpobj
 
-    def save(self, file: Union[str, pathlib.Path]) -> None:
+    def save(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a specified file.
 
         The format of the saved file is determined by the file extension provided in the `file` 
-        argument. Supported formats are:
+        argument. 
+        
+        **Supported formats:**
         
         - `.bed`: Binary PED (Plink) format.
         - `.pgen`: Plink2 binary genotype format.
@@ -1280,10 +1282,10 @@ class SNPObject:
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. The extension of the file determines the save format. 
+                Path to the file where the data will be saved. The extension of the file determines the save format. 
                 Supported extensions: `.bed`, `.pgen`, `.vcf`, `.pkl`.
         """
-        ext = pathlib.Path(file).suffix.lower()
+        ext = Path(file).suffix.lower()
         if ext == '.bed':
             self.save_bed(file)
         elif ext == '.pgen':
@@ -1295,52 +1297,52 @@ class SNPObject:
         else:
             raise ValueError(f"Unsupported file extension: {ext}")
 
-    def save_bed(self, file: Union[str, pathlib.Path]) -> None:
+    def save_bed(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a `.bed` file.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.bed`. 
+                Path to the file where the data will be saved. It should end with `.bed`. 
                 If the provided path does not have this extension, it will be appended.
         """
         from snputils.snp.io.write.bed import BEDWriter
         writer = BEDWriter(snpobj=self, filename=file)
         writer.write()
 
-    def save_pgen(self, file: Union[str, pathlib.Path]) -> None:
+    def save_pgen(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a `.pgen` file.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.pgen`. 
+                Path to the file where the data will be saved. It should end with `.pgen`. 
                 If the provided path does not have this extension, it will be appended.
         """
         from snputils.snp.io.write.pgen import PGENWriter
         writer = PGENWriter(snpobj=self, filename=file)
         writer.write()
 
-    def save_vcf(self, file: Union[str, pathlib.Path]) -> None:
+    def save_vcf(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a `.vcf` file.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.vcf`. 
+                Path to the file where the data will be saved. It should end with `.vcf`. 
                 If the provided path does not have this extension, it will be appended.
         """
         from snputils.snp.io.write.vcf import VCFWriter
         writer = VCFWriter(snpobj=self, filename=file)
         writer.write()
 
-    def save_pickle(self, file: Union[str, pathlib.Path]) -> None:
+    def save_pickle(self, file: Union[str, Path]) -> None:
         """
         Save `self` in serialized form to a `.pkl` file.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.pkl`. 
+                Path to the file where the data will be saved. It should end with `.pkl`. 
                 If the provided path does not have this extension, it will be appended.
         """
         import pickle

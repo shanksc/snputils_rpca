@@ -85,7 +85,7 @@ class VCFReader(SNPBaseReader):
             calldata_gt=genotypes,
             samples=vcf_dict["samples"],
             variants_ref=vcf_dict["variants/REF"],
-            variants_alt=vcf_dict["variants/ALT"],
+            variants_alt=vcf_dict["variants/ALT"][:, 0],
             variants_chrom=vcf_dict["variants/CHROM"],
             variants_filter_pass=vcf_dict["variants/FILTER_PASS"],
             variants_id=vcf_dict["variants/ID"],
@@ -315,22 +315,12 @@ class VCFReaderPolars(SNPBaseReader):
                 if not phased:
                     genotypes = genotypes.sum(axis=2, dtype=np.int8)
 
-            # Extract alternate alleles and create a structured array
-            if 'ALT' in fields:
-                variants_alt = vcf['ALT'].to_numpy()
-                variants_alt = np.column_stack([variants_alt,
-                                                ['']*len(variants_alt),
-                                                ['']*len(variants_alt)
-                                                ])
-            else:
-                variants_alt = np.array([])
-
             # Create a SNPObject with the processed data
             snpobj = SNPObject(
                 calldata_gt=genotypes,
                 samples=np.array(samples),
                 variants_ref=vcf['REF'].to_numpy() if 'REF' in fields else np.array([]),
-                variants_alt=variants_alt,
+                variants_alt=vcf['ALT'].to_numpy() if 'ALT' in fields else np.array([]),
                 variants_chrom=vcf['#CHROM'].to_numpy() if '#CHROM' in fields else np.array([]),
                 variants_filter_pass=vcf['FILTER'].to_numpy() if 'FILTER' in fields else np.array([]),
                 variants_id=vcf['ID'].to_numpy() if 'ID' in fields else np.array([]),
