@@ -23,7 +23,7 @@ class SNPReader:
         if not suffixes:
             raise ValueError("The filename should have an extension when using SNPReader.")
 
-        extension = suffixes[-2] if suffixes[-1].lower() == ".gz" else suffixes[-1]
+        extension = suffixes[-2] if suffixes[-1].lower() in (".zst", ".gz") else suffixes[-1]
         extension = extension.lower()
 
         if extension == ".vcf":
@@ -41,7 +41,7 @@ class SNPReader:
             from snputils.snp.io.read.bed import BEDReader
 
             return BEDReader(filename)
-        elif extension in (".pgen", ".pvar", ".psam"):
+        elif extension in (".pgen", ".pvar", ".psam", ".pvar.zst"):
             from snputils.snp.io.read.pgen import PGENReader
 
             return PGENReader(filename)
