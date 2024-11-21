@@ -107,22 +107,28 @@ class PGENWriter:
             flat_genotypes = self.__snpobj.calldata_gt.reshape(
                 num_variants, num_samples * num_alleles
             )
+            with pg.PgenWriter(
+                filename=f"{self.__filename}.pgen".encode('utf-8'),
+                sample_ct=num_samples,
+                variant_ct=num_variants,
+                hardcall_phase_present=True,
+            ) as writer:
+                for variant_index in range(num_variants):
+                    writer.append_alleles(
+                        flat_genotypes[variant_index].astype(np.int32), all_phased=True
+                    )
         else:
             num_variants, num_samples = self.__snpobj.calldata_gt.shape
-            flat_genotypes = self.__snpobj.calldata_gt
-
-        print("num_samples", num_samples)
-        print("num_variants", num_variants)
-        print("flat_genotypes", flat_genotypes.shape)
-        print(not summed_strands)
-
-        with pg.PgenWriter(
-            filename=f"{self.__filename}.pgen".encode('utf-8'),
-            sample_ct=num_samples,
-            variant_ct=num_variants,
-            hardcall_phase_present=not summed_strands,
-        ) as writer:
-            for variant_index in range(num_variants):
-                writer.append_alleles(
-                    flat_genotypes[variant_index].astype(np.int32), all_phased=not summed_strands
-                )
+            # Transpose to (samples, variants)
+            genotypes = self.__snpobj.calldata_gt.T  # Shape is (samples, variants)
+            with pg.PgenWriter(
+                filename=f"{self.__filename}.pgen".encode('utf-8'),
+                sample_ct=num_samples,
+                variant_ct=num_variants,
+                hardcall_phase_present=False,
+            ) as writer:
+                for variant_index in range(num_variants):
+                    variant_genotypes = genotypes[:, variant_index].astype(np.int8)
+                    # Map missing genotypes to -9 if necessary
+                    variant_genotypes[variant_genotypes == -1] = -9
+                    writer.append_biallelic(np.ascontiguousarray(variant_genotypes))
