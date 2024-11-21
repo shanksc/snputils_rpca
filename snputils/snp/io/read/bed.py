@@ -22,7 +22,6 @@ class BEDReader(SNPBaseReader):
         variant_ids: Optional[np.ndarray] = None,
         variant_idxs: Optional[np.ndarray] = None,
         sum_strands: bool = False,
-        n_jobs: int = 1
     ) -> SNPObject:
         """
         Read a bed fileset (bed, bim, fam) into a SNPObject.
@@ -174,12 +173,9 @@ class BEDReader(SNPBaseReader):
 
         snpobj = SNPObject(
             calldata_gt=genotypes if "GT" in fields else None,
-            samples=fam.get_column("IID").to_numpy() if "IID" in fields else None,
-            variants_ref=bim.get_column("REF").to_numpy() if "REF" in fields else None,
-            variants_alt=bim.get_column("ALT").to_numpy() if "ALT" in fields else None,
-            variants_chrom=bim.get_column("#CHROM").to_numpy() if "#CHROM" in fields else None,
-            variants_id=bim.get_column("ID").to_numpy() if "ID" in fields else None,
-            variants_pos=bim.get_column("POS").to_numpy() if "POS" in fields else None,
+            samples=fam.get_column("IID").to_numpy() if "IID" in fields and "IID" in fam.columns else None,
+            **{f'variants_{k.lower()}': bim.get_column(v).to_numpy() if v in fields and v in bim.columns else None
+               for k, v in {'ref': 'REF', 'alt': 'ALT', 'chrom': '#CHROM', 'id': 'ID', 'pos': 'POS'}.items()}
         )
 
         log.info("Finished constructing SNPObject")

@@ -23,7 +23,6 @@ class PGENReader(SNPBaseReader):
         variant_ids: Optional[np.ndarray] = None,
         variant_idxs: Optional[np.ndarray] = None,
         sum_strands: bool = False,
-        n_jobs: int = 1
     ) -> SNPObject:
         """
         Read a pgen fileset (pgen, psam, pvar) into a SNPObject.
@@ -217,14 +216,9 @@ class PGENReader(SNPBaseReader):
 
         snpobj = SNPObject(
             calldata_gt=genotypes if "GT" in fields else None,
-            samples=psam.get_column("IID").to_numpy() if "IID" in psam.columns and fields else None,
-            variants_ref=pvar.get_column("REF").to_numpy() if "REF" in pvar.columns and fields else None,
-            variants_alt=pvar.get_column("ALT").to_numpy() if "ALT" in pvar.columns and fields else None,
-            variants_chrom=pvar.get_column("#CHROM").to_numpy() if "#CHROM" in pvar.columns and fields else None,
-            variants_id=pvar.get_column("ID").to_numpy() if "ID" in pvar.columns and fields else None,
-            variants_pos=pvar.get_column("POS").to_numpy() if "POS" in pvar.columns and fields else None,
-            variants_filter_pass=pvar.get_column("FILTER").to_numpy() if "FILTER" in pvar.columns and fields else None,
-            variants_qual=pvar.get_column("QUAL").to_numpy() if "QUAL" in pvar.columns and fields else None,
+            samples=psam.get_column("IID").to_numpy() if "IID" in fields and "IID" in psam.columns else None,
+            **{f'variants_{k.lower()}': pvar.get_column(v).to_numpy() if v in fields and v in pvar.columns else None
+               for k, v in {'ref': 'REF', 'alt': 'ALT', 'chrom': '#CHROM', 'id': 'ID', 'pos': 'POS', 'filter_pass': 'FILTER', 'qual': 'QUAL'}.items()}
         )
 
         log.info("Finished constructing SNPObject")
