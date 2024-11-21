@@ -26,7 +26,7 @@ pip install snputils
 
 Optionally, for GPU-accelerated functionalities, install the package with the `[gpu]` extra:
 ```bash
-pip install snputils[gpu]
+pip install 'snputils[gpu]'
 ```
 
 ## Key Features
@@ -111,6 +111,6 @@ We would like to thank the open-source Python packages that make **snputils** po
 
 If you use **snputils** in your research, please cite:
 
-> Bonet, D.\*, Comajoan Cara, M.\*, Barrabés, M.\*, Smeriglio, R., Agrawal, D., Dominguez Mantes, A., López, C., Thomassin, C., Calafell, A., Luis, A., Saurina, J., Franquesa, M., Perera, M., Geleta, M., Jaras, A., Sabat, B. O., Abante, J., Moreno-Grau, S., Mas Montserrat, D., Ioannidis, A. G., snputils: A Python library for processing diverse genomes. Annual Meeting of The American Society of Human Genetics, November 2024, Denver, Colorado, USA. \* Equal contribution.
+> Bonet, D.\*, Comajoan Cara, M.\*, Barrabés, M.\*, Smeriglio, R., Agrawal, D., Dominguez Mantes, A., López, C., Thomassin, C., Calafell, A., Luis, A., Saurina, J., Franquesa, M., Perera, M., Geleta, M., Jaras, A., Sabat, B. O., Abante, J., Moreno-Grau, S., Mas Montserrat, D., Ioannidis, A. G., snputils: A Python library for processing diverse genomes. Annual Meeting of The American Society of Human Genetics, November 2024, Denver, Colorado, USA. \*Equal contribution.
 
 Journal paper coming soon!
