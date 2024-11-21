@@ -21,7 +21,7 @@ class BEDReader(SNPBaseReader):
         sample_idxs: Optional[np.ndarray] = None,
         variant_ids: Optional[np.ndarray] = None,
         variant_idxs: Optional[np.ndarray] = None,
-        phased: bool = False,
+        sum_strands: bool = False,
         n_jobs: int = 1
     ) -> SNPObject:
         """
@@ -38,15 +38,17 @@ class BEDReader(SNPBaseReader):
             sample_idxs: List of sample indices to read. If None and sample_ids is None, all samples are read.
             variant_ids: List of variant IDs to read. If None and variant_idxs is None, all variants are read.
             variant_idxs: List of variant indices to read. If None and variant_ids is None, all variants are read.
-            phased: Whether to read and store the genotypes as phased.
-                Note that due to the pgenlib backend, when phased is True, 8 times as much RAM is required.
-                Nonetheless, the calldata_gt will only be double the size.
+            sum_strands: True if the maternal and paternal strands are to be summed together, 
+                False if the strands are to be stored separately. Note that due to the pgenlib backend, when sum_strands is False, 
+                8 times as much RAM is required. Nonetheless, the calldata_gt will only be double the size.
                 WARNING: bed files do not store phase information. If you need it, use vcf or pgen.
 
         Returns:
-            snpobj: SNPObject containing the data from the bed fileset.
-                If phased is True, calldata_gt is stored as a numpy array of shape (num_variants, num_samples, 2) and dtype int8 containing 0, 1.
-                If phased is False, calldata_gt is stored as a numpy array of shape (num_variants, num_samples) and dtype int8 containing 0, 1, 2.
+            snpobj: SNPObject containing the data from the pgen fileset.
+                If sum_strands is False, calldata_gt is stored as a numpy array of shape
+                (num_variants, num_samples, 2) and dtype int8 containing 0, 1.
+                If sum_strands is True, calldata_gt is stored as a numpy array of shape
+                (num_variants, num_samples) and dtype int8 containing 0, 1, 2.
 
         Raises:
             AssertionError: If both sample_idxs and sample_ids are specified.
@@ -151,13 +153,13 @@ class BEDReader(SNPBaseReader):
                 variant_idxs = np.arange(num_variants, dtype=np.uint32)
 
             # required arrays: variant_idxs + sample_idxs + genotypes
-            if phased:
+            if not sum_strands:
                 required_ram = (num_samples + num_variants + num_variants * 2 * num_samples) * 4
             else:
                 required_ram = (num_samples + num_variants) * 4 + num_variants * num_samples
             log.info(f">{required_ram / 1024**3:.2f} GiB of RAM are required to process {num_samples} samples with {num_variants} variants each")
 
-            if phased:
+            if not sum_strands:
                 genotypes = np.empty((num_variants, 2 * num_samples), dtype=np.int32)  # cannot use int8 because of pgenlib
                 pgen_reader.read_alleles_list(variant_idxs, genotypes)
                 genotypes = genotypes.astype(np.int8).reshape((num_variants, num_samples, 2))

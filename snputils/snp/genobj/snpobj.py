@@ -1,5 +1,5 @@
 import logging
-import pathlib
+from pathlib import Path
 import numpy as np
 import copy
 import warnings
@@ -35,8 +35,8 @@ class SNPObject:
                 An array containing unique sample identifiers.
             variants_ref (array of shape (n_snps,), optional): 
                 An array containing the reference allele for each SNP.
-            variants_alt (array of shape (n_snps, 3), optional): 
-                An array containing the alternate alleles for each SNP.
+            variants_alt (array of shape (n_snps,), optional): 
+                An array containing the alternate allele for each SNP.
             variants_chrom (array of shape (n_snps,), optional): 
                 An array containing the chromosome for each SNP.
             variants_filter_pass (array of shape (n_snps,), optional): 
@@ -139,7 +139,7 @@ class SNPObject:
         Retrieve `variants_alt`.
 
         Returns:
-            **array of shape (n_snps, 3):** An array containing the alternate alleles for each SNP.
+            **array of shape (n_snps,):** An array containing the alternate allele for each SNP.
         """
         return self.__variants_alt
 
@@ -287,19 +287,21 @@ class SNPObject:
         return self.variants_chrom[np.sort(idx)]
 
     @property
-    def is_phased(self) -> bool:
+    def are_strands_summed(self) -> bool:
         """
-        Retrieve `is_phased`.
+        Retrieve `are_strands_summed`.
         
         Returns:
-            **bool:** True if the genotype data in `calldata_gt` has shape 
-            `(n_samples, n_snps, 2)`, False if it has shape `(n_samples, n_snps)`.
+            **bool:** 
+                True if the maternal and paternal strands have been summed together, which is indicated by 
+                `calldata_gt` having shape `(n_samples, n_snps)`. False if the strands are stored separately, 
+                indicated by `calldata_gt` having shape `(n_samples, n_snps, 2)`.
         """
         if self.calldata_gt is None:
             warnings.warn("Genotype data `calldata_gt` is None.")
             return None
         
-        return self.calldata_gt.ndim == 3
+        return self.calldata_gt.ndim == 2
 
     def copy(self) -> 'SNPObject':
         """
@@ -979,10 +981,10 @@ class SNPObject:
             If `inplace=True`, modifies `self` in place and returns None.
         """
         # Identify strand-ambiguous SNPs using vectorized comparisons
-        is_AT = (self['variants_ref'] == 'A') & (self['variants_alt'][:, 0] == 'T')
-        is_TA = (self['variants_ref'] == 'T') & (self['variants_alt'][:, 0] == 'A')
-        is_CG = (self['variants_ref'] == 'C') & (self['variants_alt'][:, 0] == 'G')
-        is_GC = (self['variants_ref'] == 'G') & (self['variants_alt'][:, 0] == 'C')
+        is_AT = (self['variants_ref'] == 'A') & (self['variants_alt'] == 'T')
+        is_TA = (self['variants_ref'] == 'T') & (self['variants_alt'] == 'A')
+        is_CG = (self['variants_ref'] == 'C') & (self['variants_alt'] == 'G')
+        is_GC = (self['variants_ref'] == 'G') & (self['variants_alt'] == 'C')
 
         # Create a combined mask for all ambiguous variants
         ambiguous_mask = is_AT | is_TA | is_CG | is_GC
@@ -1077,29 +1079,29 @@ class SNPObject:
         # Log statistics on matching alleles if enabled
         if log_stats:
             matching_ref = np.sum(self['variants_ref'][query_idx] == snpobj['variants_ref'][reference_idx])
-            matching_alt = np.sum(self['variants_alt'][query_idx, 0] == snpobj['variants_alt'][reference_idx, 0])
-            ambiguous = np.sum(self['variants_ref'][query_idx] == self['variants_alt'][query_idx, 0])
+            matching_alt = np.sum(self['variants_alt'][query_idx] == snpobj['variants_alt'][reference_idx])
+            ambiguous = np.sum(self['variants_ref'][query_idx] == self['variants_alt'][query_idx])
             log.info(f"Matching reference alleles (ref=ref'): {matching_ref}, Matching alternate alleles (alt=alt'): {matching_alt}.")
             log.info(f"Number of ambiguous alleles (ref=alt): {ambiguous}.")
 
         # Identify indices where `ref` and `alt` alleles are swapped
         if not check_complement:
             # Simple exact match for swapped alleles
-            swapped_ref = (self['variants_ref'][query_idx] == snpobj['variants_alt'][reference_idx, 0])
-            swapped_alt = (self['variants_alt'][query_idx, 0] == snpobj['variants_ref'][reference_idx])
+            swapped_ref = (self['variants_ref'][query_idx] == snpobj['variants_alt'][reference_idx])
+            swapped_alt = (self['variants_alt'][query_idx] == snpobj['variants_ref'][reference_idx])
         else:
             # Check for swapped or complementary-swapped alleles
             swapped_ref = (
-                (self['variants_ref'][query_idx] == snpobj['variants_alt'][reference_idx, 0]) |
-                (np.vectorize(get_complement)(self['variants_ref'][query_idx]) == snpobj['variants_alt'][reference_idx, 0])
+                (self['variants_ref'][query_idx] == snpobj['variants_alt'][reference_idx]) |
+                (np.vectorize(get_complement)(self['variants_ref'][query_idx]) == snpobj['variants_alt'][reference_idx])
             )
             swapped_alt = (
-                (self['variants_alt'][query_idx, 0] == snpobj['variants_ref'][reference_idx]) |
-                (np.vectorize(get_complement)(self['variants_alt'][query_idx, 0]) == snpobj['variants_ref'][reference_idx])
+                (self['variants_alt'][query_idx] == snpobj['variants_ref'][reference_idx]) |
+                (np.vectorize(get_complement)(self['variants_alt'][query_idx]) == snpobj['variants_ref'][reference_idx])
             )
 
         # Filter out ambiguous variants where `ref` and `alt` alleles match (ref=alt)
-        not_ambiguous = (self['variants_ref'][query_idx] != self['variants_alt'][query_idx, 0])
+        not_ambiguous = (self['variants_ref'][query_idx] != self['variants_alt'][query_idx])
 
         # Indices in `self` of flipped variants
         flip_idx_query = query_idx[swapped_ref & swapped_alt & not_ambiguous]
@@ -1108,18 +1110,18 @@ class SNPObject:
         if len(flip_idx_query) > 0:
             log.info(f'Correcting {len(flip_idx_query)} variant flips...')
 
-            temp_alts = self['variants_alt'][flip_idx_query, 0]
+            temp_alts = self['variants_alt'][flip_idx_query]
             temp_refs = self['variants_ref'][flip_idx_query]
 
             # Correct the variant flips based on whether the operation is in-place or not
             if inplace:
-                self['variants_alt'][flip_idx_query, 0] = temp_refs
+                self['variants_alt'][flip_idx_query] = temp_refs
                 self['variants_ref'][flip_idx_query] = temp_alts
                 self['calldata_gt'][flip_idx_query] = 1 - self['calldata_gt'][flip_idx_query]
                 return None
             else:
                 snpobj = self.copy()
-                snpobj['variants_alt'][flip_idx_query, 0] = temp_refs
+                snpobj['variants_alt'][flip_idx_query] = temp_refs
                 snpobj['variants_ref'][flip_idx_query] = temp_alts
                 snpobj['calldata_gt'][flip_idx_query] = 1 - snpobj['calldata_gt'][flip_idx_query]
                 return snpobj
@@ -1167,7 +1169,7 @@ class SNPObject:
 
         # Vectorized comparison of `ref` and `alt` alleles
         ref_mismatch = self['variants_ref'][query_idx] != snpobj['variants_ref'][reference_idx]
-        alt_mismatch = self['variants_alt'][query_idx, 0] != snpobj['variants_alt'][reference_idx, 0]
+        alt_mismatch = self['variants_alt'][query_idx] != snpobj['variants_alt'][reference_idx]
         mismatch_mask = ref_mismatch | alt_mismatch
 
         # Identify indices in `self` of mismatching variants
@@ -1235,7 +1237,7 @@ class SNPObject:
         """
         if inplace:
             if self.variants_alt is not None:
-                self.variants_alt[:, 0][self.variants_alt[:, 0] == ''] = '.'
+                self.variants_alt[self.variants_alt == ''] = '.'
             if self.variants_ref is not None:
                 self.variants_ref[self.variants_ref == ''] = '.'
             if self.variants_qual is not None:
@@ -1252,7 +1254,7 @@ class SNPObject:
         else:
             snpobj = self.copy()
             if snpobj.variants_alt is not None:
-                snpobj.variants_alt[:, 0][snpobj.variants_alt[:, 0] == ''] = '.'
+                snpobj.variants_alt[snpobj.variants_alt == ''] = '.'
             if snpobj.variants_ref is not None:
                 snpobj.variants_ref[snpobj.variants_ref == ''] = '.'
             if snpobj.variants_qual is not None:
@@ -1266,12 +1268,14 @@ class SNPObject:
                 snpobj.variants_id[snpobj.variants_id == ''] = '.'
             return snpobj
 
-    def save(self, file: Union[str, pathlib.Path]) -> None:
+    def save(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a specified file.
 
         The format of the saved file is determined by the file extension provided in the `file` 
-        argument. Supported formats are:
+        argument. 
+        
+        **Supported formats:**
         
         - `.bed`: Binary PED (Plink) format.
         - `.pgen`: Plink2 binary genotype format.
@@ -1280,10 +1284,10 @@ class SNPObject:
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. The extension of the file determines the save format. 
+                Path to the file where the data will be saved. The extension of the file determines the save format. 
                 Supported extensions: `.bed`, `.pgen`, `.vcf`, `.pkl`.
         """
-        ext = pathlib.Path(file).suffix.lower()
+        ext = Path(file).suffix.lower()
         if ext == '.bed':
             self.save_bed(file)
         elif ext == '.pgen':
@@ -1295,52 +1299,52 @@ class SNPObject:
         else:
             raise ValueError(f"Unsupported file extension: {ext}")
 
-    def save_bed(self, file: Union[str, pathlib.Path]) -> None:
+    def save_bed(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a `.bed` file.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.bed`. 
+                Path to the file where the data will be saved. It should end with `.bed`. 
                 If the provided path does not have this extension, it will be appended.
         """
         from snputils.snp.io.write.bed import BEDWriter
         writer = BEDWriter(snpobj=self, filename=file)
         writer.write()
 
-    def save_pgen(self, file: Union[str, pathlib.Path]) -> None:
+    def save_pgen(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a `.pgen` file.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.pgen`. 
+                Path to the file where the data will be saved. It should end with `.pgen`. 
                 If the provided path does not have this extension, it will be appended.
         """
         from snputils.snp.io.write.pgen import PGENWriter
         writer = PGENWriter(snpobj=self, filename=file)
         writer.write()
 
-    def save_vcf(self, file: Union[str, pathlib.Path]) -> None:
+    def save_vcf(self, file: Union[str, Path]) -> None:
         """
         Save the data stored in `self` to a `.vcf` file.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.vcf`. 
+                Path to the file where the data will be saved. It should end with `.vcf`. 
                 If the provided path does not have this extension, it will be appended.
         """
         from snputils.snp.io.write.vcf import VCFWriter
         writer = VCFWriter(snpobj=self, filename=file)
         writer.write()
 
-    def save_pickle(self, file: Union[str, pathlib.Path]) -> None:
+    def save_pickle(self, file: Union[str, Path]) -> None:
         """
         Save `self` in serialized form to a `.pkl` file.
 
         Args:
             file (str or pathlib.Path): 
-                The path to the file where the data will be saved. It should end with `.pkl`. 
+                Path to the file where the data will be saved. It should end with `.pkl`. 
                 If the provided path does not have this extension, it will be appended.
         """
         import pickle

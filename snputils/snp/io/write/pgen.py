@@ -61,7 +61,7 @@ class PGENWriter:
                 "POS": self.__snpobj.variants_pos,
                 "ID": self.__snpobj.variants_id,
                 "REF": self.__snpobj.variants_ref,
-                "ALT": self.__snpobj.variants_alt[:, 0],
+                "ALT": self.__snpobj.variants_alt,
                 "FILTER": self.__snpobj.variants_filter_pass,
                 # TODO: add INFO column to SNPObject and write it to the .pvar file? (if not it's lost)
             }
@@ -100,24 +100,35 @@ class PGENWriter:
         Writes the genotype data to a .pgen file.
         """
         log.info(f"Writing to {self.__filename}.pgen")
-        phased = True if self.__snpobj.calldata_gt.ndim == 3 else False
-        if phased:
+        summed_strands = False if self.__snpobj.calldata_gt.ndim == 3 else True
+        if not summed_strands:
             num_variants, num_samples, num_alleles = self.__snpobj.calldata_gt.shape
             # Flatten the genotype matrix for pgenlib
             flat_genotypes = self.__snpobj.calldata_gt.reshape(
                 num_variants, num_samples * num_alleles
             )
+            with pg.PgenWriter(
+                filename=f"{self.__filename}.pgen".encode('utf-8'),
+                sample_ct=num_samples,
+                variant_ct=num_variants,
+                hardcall_phase_present=True,
+            ) as writer:
+                for variant_index in range(num_variants):
+                    writer.append_alleles(
+                        flat_genotypes[variant_index].astype(np.int32), all_phased=True
+                    )
         else:
             num_variants, num_samples = self.__snpobj.calldata_gt.shape
-            flat_genotypes = self.__snpobj.calldata_gt
-
-        with pg.PgenWriter(
-            filename=f"{self.__filename}.pgen".encode('utf-8'),
-            sample_ct=num_samples,
-            variant_ct=num_variants,
-            hardcall_phase_present=phased,
-        ) as writer:
-            for variant_index in range(num_variants):
-                writer.append_alleles(
-                    flat_genotypes[variant_index].astype(np.int32), all_phased=phased
-                )
+            # Transpose to (samples, variants)
+            genotypes = self.__snpobj.calldata_gt.T  # Shape is (samples, variants)
+            with pg.PgenWriter(
+                filename=f"{self.__filename}.pgen".encode('utf-8'),
+                sample_ct=num_samples,
+                variant_ct=num_variants,
+                hardcall_phase_present=False,
+            ) as writer:
+                for variant_index in range(num_variants):
+                    variant_genotypes = genotypes[:, variant_index].astype(np.int8)
+                    # Map missing genotypes to -9 if necessary
+                    variant_genotypes[variant_genotypes == -1] = -9
+                    writer.append_biallelic(np.ascontiguousarray(variant_genotypes))

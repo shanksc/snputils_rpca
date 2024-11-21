@@ -11,7 +11,7 @@ from snputils.ancestry.genobj.wide import GlobalAncestryObject
 
 class AdmixtureReader(WideBaseReader):
     """
-    Reader class for ADMIXTURE output files.
+    A reader class for parsing ADMIXTURE files and constructing a `snputils.ancestry.genobj.GlobalAncestryObject`.
     """
     def __init__(
         self,
@@ -25,14 +25,24 @@ class AdmixtureReader(WideBaseReader):
         Args:
             Q_file (str or pathlib.Path):
                 Path to the file containing the Q matrix (per-sample ancestry proportions).
+                It should end with .Q or .txt.
+                The file should use space (' ') as the delimiter.
             P_file (str or pathlib.Path):
                 Path to the file containing the P/F matrix (per-ancestry SNP frequencies).
+                It should end with .P or .txt.
+                The file should use space (' ') as the delimiter.
             sample_file (str or pathlib.Path, optional):
-                Path to the file containing sample identifiers. If None, sample identifiers are not loaded.
+                Path to the single-column file containing sample identifiers. 
+                It should end with .fam or .txt.
+                If None, sample identifiers are not loaded.
             snp_file (str or pathlib.Path, optional):
-                Path to the file containing SNP identifiers. If None, SNP identifiers are not loaded.
+                Path to the single-column file containing SNP identifiers. 
+                It should end with .bim or .txt.
+                If None, SNP identifiers are not loaded.
             ancestry_file (str or pathlib.Path, optional):
-                Path to the file containing ancestry labels for each sample. If None, ancestries are not loaded.
+                Path to the single-column file containing ancestry labels for each sample.
+                It should end with .map or .txt.
+                If None, ancestries are not loaded.
         """
         self.__Q_file = Path(Q_file)
         self.__P_file = Path(P_file)
@@ -43,64 +53,90 @@ class AdmixtureReader(WideBaseReader):
     @property
     def Q_file(self) -> Path:
         """
-        Retrieve `Q_file`.
+        Retrieve Q_file.
 
         Returns:
-            pathlib.Path: Path to the file containing the Q matrix (per-sample ancestry proportions).
+            **pathlib.Path:** 
+                Path to the file containing the Q matrix (per-sample ancestry proportions).
+                It should end with .Q or .txt.
+                The file should use space (' ') as the delimiter.
         """
         return self.__Q_file
-    
+
     @property
     def P_file(self) -> Path:
         """
-        Retrieve `P_file`.
+        Retrieve P_file.
 
         Returns:
-            pathlib.Path: Path to the file containing the P/F matrix (per-ancestry SNP frequencies).
+            **pathlib.Path:** 
+                Path to the file containing the P/F matrix (per-ancestry SNP frequencies).
+                It should end with .P or .txt.
+                The file should use space (' ') as the delimiter.
         """
         return self.__P_file
-    
+
     @property
     def sample_file(self) -> Optional[Path]:
         """
-        Retrieve `sample_file`.
+        Retrieve sample_file.
 
         Returns:
-            pathlib.Path: Path to the file containing sample identifiers. If None, sample identifiers are not loaded.
+            **pathlib.Path:** 
+                Path to the single-column file containing sample identifiers. 
+                It should end with .fam or .txt.
+                If None, sample identifiers are not loaded.
         """
         return self.__sample_file
     
     @property
     def snp_file(self) -> Optional[Path]:
         """
-        Retrieve `snp_file`.
+        Retrieve snp_file.
 
         Returns:
-            pathlib.Path: Path to single-column text file storing SNP ID in order.
+            **pathlib.Path:** 
+                Path to the single-column file containing SNP identifiers. 
+                It should end with .bim or .txt.
+                If None, SNP identifiers are not loaded.
         """
         return self.__snp_file
-    
+
     @property
     def ancestry_file(self) -> Optional[Path]:
         """
-        Retrieve `ancestry_file`.
+        Retrieve ancestry_file.
 
         Returns:
-            pathlib.Path: Path to the file containing ancestry labels for each sample. If None, ancestries are not loaded.
+            **pathlib.Path:** 
+                Path to the single-column file containing ancestry labels for each sample.
+                It should end with .map or .txt.
+                If None, ancestries are not loaded.
         """
         return self.__ancestry_file
 
     def read(self) -> 'GlobalAncestryObject':
         """
-        Read ADMIXTURE output files and construct a `GlobalAncestryObject` instance.
+        Read data from the provided ADMIXTURE files and construct a 
+        snputils.ancestry.genobj.GlobalAncestryObject instance.
 
-        This method processes the provided Q and P matrix files to extract per-sample ancestry proportions
-        and per-ancestry SNP frequencies. Optional files for sample identifiers, SNP identifiers, and 
-        ancestry labels are also read, if provided.
+        **Expected ADMIXTURE files content:**
+
+        - **Q_file**: 
+            A text file containing the Q matrix with per-sample ancestry proportions. 
+             Each row corresponds to a sample, and each column corresponds to an ancestry.
+        - **P_file**: 
+            A text file containing the P matrix with per-ancestry SNP frequencies.
+            Each row corresponds to a SNP, and each column corresponds to an ancestry.
+
+        Optional files (if provided):
+        - **sample_file**: A single-column text file containing sample identifiers in order.
+        - **snp_file**: A single-column text file containing SNP identifiers in order.
+        - **ancestry_file**: A single-column text file containing ancestry labels for each sample.
 
         Returns:
-            GlobalAncestryObject: 
-                A global ancestry object instance.
+            **GlobalAncestryObject:** 
+                A GlobalAncestryObject instance.
         """
         log.info(f"Reading Q matrix from '{self.Q_file}'...")
         Q_mat = np.genfromtxt(self.Q_file, delimiter=' ')

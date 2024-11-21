@@ -87,29 +87,29 @@ def data_path():
 
 @pytest.fixture(scope="module")
 def snpobj_vcf(data_path):
-    return VCFReader(data_path + "/subset.vcf").read(phased=True)
+    return VCFReader(data_path + "/subset.vcf").read(sum_strands=False)
 
 
 @pytest.fixture(scope="module")
 def snpobj_bed(data_path):
-    return BEDReader(data_path + "/bed/subset").read(phased=True)
+    return BEDReader(data_path + "/bed/subset").read(sum_strands=False)
 
 
 @pytest.fixture(scope="module")
 def snpobj_pgen(data_path):
-    return PGENReader(data_path + "/pgen/subset").read(phased=True)
+    return PGENReader(data_path + "/pgen/subset").read(sum_strands=False)
 
 
 @pytest.fixture(scope="module")
-def snpobj_vcf_unphased(data_path):
-    return VCFReader(data_path + "/subset.vcf").read(phased=False)
+def snpobj_vcf_summed_strands(data_path):
+    return VCFReader(data_path + "/subset.vcf").read(sum_strands=True)
 
 
 @pytest.fixture(scope="module")
-def snpojb_bed_unphased(data_path):
-    return BEDReader(data_path + "/bed/subset").read(phased=False)
+def snpojb_bed_summed_strands(data_path):
+    return BEDReader(data_path + "/bed/subset").read(sum_strands=True)
 
 
 @pytest.fixture(scope="module")
-def snpobj_pgen_unphased(data_path):
-    return PGENReader(data_path + "/pgen/subset").read(phased=False)
+def snpobj_pgen_summed_strands(data_path):
+    return PGENReader(data_path + "/pgen/subset").read(sum_strands=True)

@@ -86,7 +86,7 @@ class VCFWriter:
             "POS": data_chrom.variants_pos,
             "ID": data_chrom.variants_id,
             "REF": data_chrom.variants_ref,
-            "ALT": data_chrom.variants_alt[:, 0],
+            "ALT": data_chrom.variants_alt,
             "QUAL": data_chrom.variants_qual,
             "FILTER": ["PASS"] * length,
             "INFO": ["."] * length,

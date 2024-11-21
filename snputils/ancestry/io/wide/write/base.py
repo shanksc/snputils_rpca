@@ -4,6 +4,7 @@ from typing import Union
 
 from snputils.ancestry.genobj.wide import GlobalAncestryObject
 
+
 class WideBaseWriter(abc.ABC):
     """
     Abstract class for global ancestry writers.
@@ -16,24 +17,14 @@ class WideBaseWriter(abc.ABC):
         """
         Args:
             wideobj (GlobalAncestryObject): 
-                A wide ancestry object instance.
+                A GlobalAncestryObject instance.
             file_prefix (str or pathlib.Path): 
-                The prefix for the output file names, including any parent directories. 
-                This prefix is used to generate the output file names and should not include 
-                the file extensions.
+                Prefix for output file names, including directory path but excluding file extensions. 
+                The prefix is used to generate specific file names for each output, with file-specific 
+                suffixes appended as described above (e.g., `file_prefix.n_ancestries.Q` for the Q matrix file).
         """
         self.__wideobj = wideobj
         self.__file_prefix = Path(file_prefix)
-
-    @abc.abstractmethod
-    def write(self) -> None:
-        """
-        Abstract method to write wide ancestry files.
-
-        Subclasses must implement this method to write the data from
-        the Q and P files, as well as sample identifiers, SNPs, and ancestries if available.
-        """
-        pass
 
     @property
     def wideobj(self) -> GlobalAncestryObject:
@@ -41,7 +32,7 @@ class WideBaseWriter(abc.ABC):
         Retrieve `wideobj`.
 
         Returns:
-            GlobalAncestryObject: A wide ancestry object instance.
+            GlobalAncestryObject: A GlobalAncestryObject instance.
         """
         return self.__wideobj
 
@@ -52,8 +43,18 @@ class WideBaseWriter(abc.ABC):
 
         Returns:
             pathlib.Path: 
-                The prefix for the output file names, including any parent directories. 
-                This prefix is used to generate the output file names and should not include 
-                the file extensions.
+                Prefix for output file names, including directory path but excluding file extensions. 
+                The prefix is used to generate specific file names for each output, with file-specific 
+                suffixes appended as described above (e.g., `file_prefix.n_ancestries.Q` for the Q matrix file).
         """
         return self.__file_prefix
+
+    @abc.abstractmethod
+    def write(self) -> None:
+        """
+        Abstract method to write wide ancestry files.
+
+        Subclasses must implement this method to write the data from the Q and P files, 
+        as well as sample identifiers, SNPs, and ancestries if available.
+        """
+        pass

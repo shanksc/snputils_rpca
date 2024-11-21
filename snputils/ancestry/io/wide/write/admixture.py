@@ -11,7 +11,8 @@ log = logging.getLogger(__name__)
 
 class AdmixtureWriter(WideBaseWriter):
     """
-    A class for writing data stored in a `GlobalAncestryObject` instance into the multiple ADMIXTURE files.
+    A writer class for exporting global ancestry data from a 
+    `snputils.ancestry.genobj.GlobalAncestryObject` into multiple ADMIXTURE files.
     """
     def __init__(
         self, 
@@ -21,11 +22,11 @@ class AdmixtureWriter(WideBaseWriter):
         """
         Args:
             wideobj (GlobalAncestryObject): 
-                A wide ancestry object instance.
+                A GlobalAncestryObject instance.
             file_prefix (str or pathlib.Path): 
-                The prefix for the output file names, including any parent directories. 
-                This prefix is used to generate the output file names and should not include 
-                the file extensions.
+                Prefix for output file names, including directory path but excluding file extensions. 
+                The prefix is used to generate specific file names for each output, with file-specific 
+                suffixes appended as described above (e.g., `file_prefix.n_ancestries.Q` for the Q matrix file).
         """
         super(AdmixtureWriter, self).__init__(wideobj, file_prefix)
         self.__Q_file = self.file_prefix.with_suffix(f".{self.wideobj.n_ancestries}.Q")
@@ -41,66 +42,78 @@ class AdmixtureWriter(WideBaseWriter):
         Retrieve `wideobj`.
 
         Returns:
-            GlobalAncestryObject: A wide ancestry object instance.
+            **GlobalAncestryObject:** A GlobalAncestryObject instance.
         """
-        return self._wideobj
-    
+        return self.__wideobj
+
     @property
     def file_prefix(self) -> Path:
         """
         Retrieve `file_prefix`.
 
         Returns:
-            pathlib.Path: 
-                The prefix for the output file names, including any parent directories. 
-                For example, if `"parent1/fname"` is provided, the Q matrix will be saved as 
-                `"parent1/fname.K.Q"` and the P matrix as `"parent1/fname.K.P"`, where `K` is 
-                the number of ancestries.
+            **pathlib.Path:** 
+                Prefix for output file names, including directory path but excluding file extensions. 
+                The prefix is used to generate specific file names for each output, with file-specific 
+                suffixes appended as described above (e.g., `file_prefix.n_ancestries.Q` for the Q matrix file).
         """
-        return self._file_prefix
+        return self.__file_prefix
 
     @property
-    def Q_file(self) -> str:
-        """Retrieve `Q_file`.
+    def Q_file(self) -> Path:
+        """
+        Retrieve `Q_file`.
 
         Returns:
-            str: Path to store the file containing the Q matrix (per-sample ancestry proportions).
+            **pathlib.Path:** 
+                Path to the `.Q` file that will store the Q matrix (per-sample ancestry proportions).
         """
         return self.__Q_file
     
     @property
-    def P_file(self) -> str:
-        """Retrieve `P_file`.
+    def P_file(self) -> Path:
+        """
+        Retrieve `P_file`.
 
         Returns:
-            str: Path to store the file containing the P/F matrix (per-ancestry SNP frequencies).
+            **pathlib.Path:** 
+                Path to the `.P` file that will store the P/F matrix (per-ancestry SNP frequencies).
         """
         return self.__P_file
     
     @property
-    def sample_file(self) -> Optional[str]:
-        """Retrieve `sample_file`.
+    def sample_file(self) -> Optional[Path]:
+        """
+        Retrieve `sample_file`.
 
         Returns:
-            str: Path to store the file containing sample identifiers. If None, sample identifiers are not saved.
+            **pathlib.Path:** 
+                Path to the `.txt` the file that will store sample identifiers. 
+                If None, sample identifiers are not saved.
         """
         return self.__sample_file
     
     @property
-    def snp_file(self) -> Optional[str]:
-        """Retrieve `snp_file`.
+    def snp_file(self) -> Optional[Path]:
+        """
+        Retrieve `snp_file`.
 
         Returns:
-            str: Path to store the file containing SNP identifiers. If None, SNP identifiers are not saved.
+            **pathlib.Path:** 
+                Path to the `.txt` file that will store SNP identifiers. 
+                If None, SNP identifiers are not saved.
         """
         return self.__snp_file
     
     @property
-    def ancestry_file(self) -> Optional[str]:
-        """Retrieve `ancestry_file`.
+    def ancestry_file(self) -> Optional[Path]:
+        """
+        Retrieve `ancestry_file`.
 
         Returns:
-            str: Path to store the file containing ancestry labels for each sample. If None, ancestries are not saved.
+            **pathlib.Path:** 
+                Path to the `.map` file that will store ancestry labels for each sample. 
+                If None, ancestries are not saved.
         """
         return self.__ancestry_file
 
@@ -134,14 +147,16 @@ class AdmixtureWriter(WideBaseWriter):
 
     def write(self) -> None:
         """
-        Write the data contained in the `wideobj` instance into the multiple ADMIXTURE files.
-        The output filenames are based on the specified `file_prefix` and include the following:
+        Write the data contained in the `wideobj` instance into the multiple ADMIXTURE files
+        with the specified `file_prefix`. If the files already exist, they will be overwritten.
 
-            - Q matrix file: `<file_prefix>.K.Q`.
-            - P matrix file: `<file_prefix>.K.P`.
-            - Sample IDs file: `<file_prefix>.sample_ids.txt` (if sample IDs are available).
-            - SNP IDs file: `<file_prefix>.snp_ids.txt` (if SNP IDs are available).
-            - Ancestry file: `<file_prefix>.map` (if ancestries information is available).
+        **Output files:**
+
+        - `<file_prefix>.K.Q`: Q matrix file. The file uses space (' ') as the delimiter.
+        - `<file_prefix>.K.P`: P matrix file. The file uses space (' ') as the delimiter.
+        - `<file_prefix>.sample_ids.txt`: Sample IDs file (if sample IDs are available).
+        - `<file_prefix>.snp_ids.txt`: SNP IDs file (if SNP IDs are available).
+        - `<file_prefix>.map`: Ancestry file (if ancestries information is available).
 
         where `K` is the total number of ancestries.
         """

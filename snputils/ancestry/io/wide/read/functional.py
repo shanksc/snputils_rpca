@@ -12,27 +12,33 @@ def read_admixture(
     ancestry_file: Optional[Union[str, Path]] = None,
 ) -> 'GlobalAncestryObject':
     """
-    Read admixture files into a GlobalAncestryObject.
-
-    This function processes the provided Q and P matrix files to extract per-sample ancestry proportions
-    and per-ancestry SNP frequencies. Optional files for sample identifiers, SNP identifiers, and 
-    ancestry labels are also read, if provided.
+    Read ADMIXTURE files into a `snputils.ancestry.genobj.GlobalAncestryObject`.
 
     Args:
         Q_file (str or pathlib.Path):
             Path to the file containing the Q matrix (per-sample ancestry proportions).
+            It should end with .Q or .txt.
+            The file should use space (' ') as the delimiter.
         P_file (str or pathlib.Path):
             Path to the file containing the P/F matrix (per-ancestry SNP frequencies).
+            It should end with .P or .txt.
+            The file should use space (' ') as the delimiter.
         sample_file (str or pathlib.Path, optional):
-            Path to the file containing sample identifiers. If None, sample identifiers are not loaded.
+            Path to the single-column file containing sample identifiers. 
+            It should end with .fam or .txt.
+            If None, sample identifiers are not loaded.
         snp_file (str or pathlib.Path, optional):
-            Path to the file containing SNP identifiers. If None, SNP identifiers are not loaded.
+            Path to the single-column file containing SNP identifiers. 
+            It should end with .bim or .txt.
+            If None, SNP identifiers are not loaded.
         ancestry_file (str or pathlib.Path, optional):
-            Path to the file containing ancestry labels for each sample. If None, ancestries are not loaded.
+            Path to the single-column file containing ancestry labels for each sample.
+            It should end with .map or .txt.
+            If None, ancestries are not loaded.
 
     Returns:
-            GlobalAncestryObject: 
-                A global ancestry object instance.
+            **GlobalAncestryObject:** 
+                A GlobalAncestryObject instance.
     """
     from snputils.ancestry.io.wide.read.admixture import AdmixtureReader
 

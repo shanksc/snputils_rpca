@@ -12,16 +12,16 @@ from snputils.ancestry.genobj.local import LocalAncestryObject
 log = logging.getLogger(__name__)
 
 
-@LAIBaseReader.register
 class MSPReader(LAIBaseReader):
     """
-    A class for reading data from an `.msp` file and constructing a `LocalAncestryObject`.
+    A reader class for parsing Local Ancestry Inference (LAI) data from an `.msp` or `msp.tsv` file
+    and constructing a `snputils.ancestry.genobj.LocalAncestryObject`.
     """
     def __init__(self, file: Union[str, Path]) -> None:
         """
         Args:
             file (str or pathlib.Path): 
-                Path to the `.msp` file containing LAI info.
+                Path to the file to be read. It should end with `.msp` or `.msp.tsv`.
         """
         self.__file = Path(file)
 
@@ -31,20 +31,23 @@ class MSPReader(LAIBaseReader):
         Retrieve `file`.
 
         Returns:
-            pathlib.Path: Path to the file containing LAI info.
+            **pathlib.Path:** 
+                Path to the file to be read. It should end with `.msp` or `.msp.tsv`.
         """
         return self.__file
 
-    def _get_samples(self, msp_df: pd.DataFrame, first_lai_col_indx: int) -> List:
+    def _get_samples(self, msp_df: pd.DataFrame, first_lai_col_indx: int) -> List[str]:
         """
-        Extract sample identifiers from a pandas DataFrame.
+        Extract unique sample identifiers from the pandas DataFrame.
 
         Args:
-            msp_df (pd.DataFrame): The pandas DataFrame containing the .msp data, including sample names.
-            first_lai_col_indx (int): The index of the first column containing LAI data.
+            msp_df (pd.DataFrame): 
+                The DataFrame representing the `.msp` data, including LAI columns.
+            first_lai_col_indx (int): 
+                Index of the first column containing LAI data.
 
         Returns:
-            list: A list of unique sample identifiers.
+            **list:** List of unique sample identifiers.
         """
         # Get all columns starting from the first LAI data column
         query_samples_dub = msp_df.columns[first_lai_col_indx:]
@@ -58,15 +61,16 @@ class MSPReader(LAIBaseReader):
 
         return query_samples
 
-    def _get_ancestry_map_from_comment(self, comment: str) -> Dict:
+    def _get_ancestry_map_from_comment(self, comment: str) -> Dict[str, str]:
         """
-        Construct an ancestry map from the comment line of the .msp file.
+        Construct an ancestry map from the comment line of the `.msp` file.
 
         This method parses the comment string to create a mapping of ancestry numerical identifiers 
         to their corresponding ancestry names.
 
         Args:
-            comment (str): The comment line containing ancestry mapping information.
+            comment (str): 
+                The comment line containing ancestry mapping information.
 
         Returns:
             dict: A dictionary mapping names to ancestry numbers (as strings).
@@ -82,20 +86,46 @@ class MSPReader(LAIBaseReader):
 
         return ancestry_map
 
-    def read(self) -> 'LocalAncestryObject':
+    def _replace_nan_with_none(self, array: Optional[np.ndarray]) -> Optional[np.ndarray]:
         """
-        Read data from an `.msp` file and construct a `LocalAncestryObject`.
+        Replace arrays that are fully NaN with `None`.
 
-        This method processes the input file to extract the necessary information including 
-        the Q and P matrices, sample identifiers, SNP identifiers, and ancestry map.
+        Args:
+            array (np.ndarray): Array to check.
 
         Returns:
-            LocalAncestryObject:
-                A local ancestry object instance.
+            Optional[np.ndarray]: Returns `None` if the array is fully NaN, otherwise returns the original array.
         """
-        log.info(f"Reading msp file from '{self.file}'...")
+        if array is not None and np.isnan(array).all():
+            return None
+        return array
 
-        # Open the file and read the first two lines to find the header
+    def read(self) -> 'LocalAncestryObject':
+        """
+        Read data from the provided `.msp` or `msp.tsv` `file` and construct a 
+        `snputils.ancestry.genobj.LocalAncestryObject`.
+
+        **Expected MSP content:**
+
+        The `.msp` file should contain local ancestry assignments for each haplotype across genomic windows.
+        Each row should correspond to a genomic window and include the following columns:
+
+        - `#chm`: Chromosome numbers corresponding to each genomic window.
+        - `spos`: Start physical position for each window.
+        - `epos`: End physical position for each window.
+        - `sgpos`: Start centimorgan position for each window.
+        - `egpos`: End centimorgan position for each window.
+        - `n snps`: Number of SNPs in each genomic window.
+        - `SampleID.0`: Local ancestry for the first haplotype of the sample for each window.
+        - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window.
+
+        Returns:
+            **LocalAncestryObject:**
+                A LocalAncestryObject instance.
+        """
+        log.info(f"Reading '{self.file}'...")
+
+        # Open the file and read the first two lines to identify the header and comment
         with open(self.file) as f:
             first_line = f.readline()
             second_line = f.readline()
@@ -110,63 +140,58 @@ class MSPReader(LAIBaseReader):
         elif "#chm" in second_line_:
             comment = first_line
             header = second_line_
-
-        # We leave #chm as the reference value for the header
         else:
             raise ValueError(
-            f".msp header not found. Expected '#chm' in first two lines. "
-            f"First line content: {first_line.strip()}\n"
-            f"Second line content: {second_line.strip()}"
-        )
+                f"Header not found. Expected '#chm' in the first two lines. "
+                f"First line: {first_line.strip()} | Second line: {second_line.strip()}"
+            )
 
-        # Ensure there are no repeated columns in the header
+        # Ensure no duplicate columns exist in the header
         if len(header) != len(set(header)):
-            raise ValueError("Repeated columns found in the header.")
+            raise ValueError("Duplicate columns detected in the header.")
 
-        # Read the data into a DataFrame, skipping comment lines
+        # Read the main data into a DataFrame, skipping comment lines
         msp_df = pd.read_csv(self.file, sep="\t", comment="#", names=header)
 
         # Extract chromosomes data
         chromosomes = msp_df['#chm'].to_numpy()
 
-        # Attempt to extract physical positions
+        # Extract physical positions (if available)
         column_counter = 1
         try:
             physical_pos = msp_df[['spos', 'epos']].to_numpy()
             column_counter += 2
         except KeyError:
             physical_pos = None
-            log.warning("Physical positions data not found.")
+            log.warning("Physical positions ('spos' and 'epos') not found.")
         
-        # Attempt to extract centimorgan positions
+        # Extract centimorgan positions (if available)
         try:
             centimorgan_pos = msp_df[['sgpos', 'egpos']].to_numpy()
             column_counter += 2
         except KeyError:
             centimorgan_pos = None
-            log.warning("Genetic (centimorgan) position data not found.")
+            log.warning("Genetic (centimorgan) positions ('sgpos' and 'egpos') not found.")
         
-        # Attempt to extract window sizes
+        # Extract window sizes (if available)
         try:
             window_sizes = msp_df['n snps'].to_numpy()
             column_counter += 1
         except KeyError:
             window_sizes = None
-            log.warning("Window size data not found.")
+            log.warning("Window sizes ('n snps') not found.")
         
-        # Extract the LAI data starting from the column after the counted ones
+        # Extract LAI data (haplotype-level)
         lai = msp_df[msp_df.columns[column_counter:]].to_numpy()
 
         # Extract haplotype identifiers
         haplotypes = msp_df.columns[column_counter:].to_list()
 
-        # Extract sample identifiers
+        # Extract haplotype identifiers and sample identifiers
         samples = self._get_samples(msp_df, column_counter)
 
-        # Count the number of samples
+        # Validate the number of samples matches the LAI data dimensions
         n_samples = len(samples)
-
-        # Validate the number of samples matches the LAI data
         if n_samples != int(lai.shape[1] / 2):
             raise ValueError(
                 "Mismatch between the number of sample identifiers and the expected number of samples in the LAI array. "
@@ -176,9 +201,9 @@ class MSPReader(LAIBaseReader):
         # Count number of unique ancestries in the LAI data
         n_ancestries = len(np.unique(lai))
 
+        # Parse ancestry map from the comment (if available)
         ancestry_map = None
         if comment is not None:
-            # If a comment is present, parse the ancestry map
             ancestry_map = self._get_ancestry_map_from_comment(comment)
             if len(ancestry_map) != n_ancestries:
                 warnings.warn(
@@ -189,9 +214,16 @@ class MSPReader(LAIBaseReader):
         else:
             # Provide default ancestry mapping if no comment is provided
             ancestry_map = None
-            warnings.warn("Ancestry map was not found. It is recommended to "
-                          "provide an .msp file that contains the ancestry "
-                          "map as a comment in the first line.")
+            warnings.warn(
+                "Ancestry map not found. It is recommended to provide an .msp file that contains the ancestry "
+                "map as a comment in the first line."
+            )
+
+        # Replace fully NaN attributes with None
+        window_sizes = self._replace_nan_with_none(window_sizes)
+        centimorgan_pos = self._replace_nan_with_none(centimorgan_pos)
+        chromosomes = self._replace_nan_with_none(chromosomes)
+        physical_pos = self._replace_nan_with_none(physical_pos)
 
         return LocalAncestryObject(
             haplotypes=haplotypes,
@@ -203,3 +235,5 @@ class MSPReader(LAIBaseReader):
             chromosomes=chromosomes,
             physical_pos=physical_pos
         )
+
+LAIBaseReader.register(MSPReader)
