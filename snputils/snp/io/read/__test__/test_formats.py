@@ -1,6 +1,7 @@
 import numpy as np
 from snputils import PGENReader
 
+
 # VCF - BED
 
 def test_vcf_bed_samples(snpobj_vcf, snpobj_bed):

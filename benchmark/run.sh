@@ -63,12 +63,26 @@ echo "Will run benchmark for chromosomes: ${CHROMS[*]}"
 # Create directory structure
 mkdir -p ${DATA_DIR}/vcf ${DATA_DIR}/bed ${DATA_DIR}/pgen benchmark/sbatch benchmark/results
 
+# Determine zip file based on OS
+case "$(uname -s)" in
+    Darwin*)
+        zip_file="plink2_mac_arm64_20241114.zip"
+        ;;
+    Linux*)
+        zip_file="plink2_linux_x86_64_20241114.zip"
+        ;;
+    *)
+        echo "Error: You will need to manually download and setup plink2 for your OS"
+        exit 1
+        ;;
+esac
+
 # Download and setup plink2 if not already present
 if [ ! -f ${DATA_DIR}/plink2 ]; then
-    wget -P ${DATA_DIR} https://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_20241020.zip
-    unzip ${DATA_DIR}/plink2_linux_x86_64_20241020.zip -d ${DATA_DIR}
+    wget -P ${DATA_DIR} https://s3.amazonaws.com/plink2-assets/alpha6/${zip_file}
+    unzip ${DATA_DIR}/${zip_file} -d ${DATA_DIR}
     chmod +x ${DATA_DIR}/plink2
-    rm ${DATA_DIR}/plink2_linux_x86_64_20241020.zip
+    rm ${DATA_DIR}/${zip_file}
 fi
 
 # Base URL for 1000 genomes data
