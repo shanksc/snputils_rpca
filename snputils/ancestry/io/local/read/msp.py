@@ -1,10 +1,9 @@
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import logging
 import warnings
 import numpy as np
 import pandas as pd
-from typing import Union
 
 from .base import LAIBaseReader
 from snputils.ancestry.genobj.local import LocalAncestryObject
