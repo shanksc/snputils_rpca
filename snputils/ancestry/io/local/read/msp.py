@@ -96,8 +96,15 @@ class MSPReader(LAIBaseReader):
         Returns:
             Optional[np.ndarray]: Returns `None` if the array is fully NaN, otherwise returns the original array.
         """
-        if array is not None and np.isnan(array).all():
-            return None
+        if array is not None:
+            if array.size == 0:  # Check if the array is empty
+                return None
+            if np.issubdtype(array.dtype, np.number):  # Check for numeric types
+                if np.isnan(array).all():  # Fully NaN numeric array
+                    return None
+            elif array.dtype == np.object_ or np.issubdtype(array.dtype, np.str_):  # String or object types
+                if all(elem == '' or elem is None for elem in array):  # Empty or None strings
+                    return None
         return array
 
     def read(self) -> 'LocalAncestryObject':
