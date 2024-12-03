@@ -526,6 +526,110 @@ class SNPLevelAncestryObject(AncestryObject):
                     snpobj[key] = np.asarray(snpobj[key])[mask_combined]
             return snpobj
 
+    def filter_samples(
+        self, 
+        samples: Optional[Union[str, Sequence[str], np.ndarray, None]] = None,
+        indexes: Optional[Union[int, Sequence[int], np.ndarray, None]] = None,
+        include: bool = True,
+        inplace: bool = False
+    ) -> Optional['SNPLevelAncestryObject']:
+        """
+        Filter samples based on specified names or indexes.
+
+        This method updates the `samples`, `calldata_gt`, `haplotypes`, and `lai` attributes 
+        to include or exclude the specified samples. The order of the samples is preserved.
+
+        If both samples and indexes are provided, any sample matching either a name in samples 
+        or an index in indexes will be included or excluded.
+
+        This method allows inclusion or exclusion of specific samples by their names or indexes. 
+        When both sample names and indexes are provided, the union of the specified samples is used. 
+        Negative indexes are supported and follow [NumPy's indexing conventions](https://numpy.org/doc/stable/user/basics.indexing.html).
+
+        Args:
+            samples (str or array_like of str, optional): 
+                Name(s) of the samples to include or exclude. Can be a single sample name or a
+                sequence of sample names. Default is None.
+            indexes (int or array_like of int, optional):
+                Index(es) of the samples to include or exclude. Can be a single index or a sequence
+                of indexes. Negative indexes are supported. Default is None.
+            include (bool, default=True): 
+                If True, includes only the specified samples. If False, excludes the specified samples. Default is True.
+            inplace (bool, default=False): 
+                If True, modifies `self` in place. If False, returns a new `SNPLevelAncestryObject` 
+                with the samples filtered. Default is False.
+
+        Returns:
+            **Optional[SNPLevelAncestryObject]:** 
+                A new `SNPLevelAncestryObject` with the specified samples filtered if `inplace=False`. 
+                If `inplace=True`, modifies `self` in place and returns None.
+        """
+        if samples is None and indexes is None:
+            raise ValueError("At least one of 'samples' or 'indexes' must be provided.")
+
+        n_samples = self.n_samples
+        sample_names = np.array(self['samples'])
+
+        # Create mask based on sample names
+        if samples is not None:
+            samples = np.atleast_1d(samples)
+            mask_samples = np.isin(sample_names, samples)
+            missing_samples = samples[~np.isin(samples, sample_names)]
+            if missing_samples.size > 0:
+                raise ValueError(f"The following specified samples were not found: {missing_samples.tolist()}")
+        else:
+            mask_samples = np.zeros(n_samples, dtype=bool)
+
+        # Create mask based on sample indexes
+        if indexes is not None:
+            indexes = np.atleast_1d(indexes)
+
+            # Validate indexes, allowing negative indexes
+            out_of_bounds_indexes = indexes[(indexes < -n_samples) | (indexes >= n_samples)]
+            if out_of_bounds_indexes.size > 0:
+                raise ValueError(f"One or more sample indexes are out of bounds.")
+            
+            # Handle negative indexes
+            adjusted_indexes = np.mod(indexes, n_samples)
+
+            mask_indexes = np.zeros(n_samples, dtype=bool)
+            mask_indexes[adjusted_indexes] = True
+        else:
+            mask_indexes = np.zeros(n_samples, dtype=bool)
+
+        # Combine masks using logical OR (union of samples)
+        mask_combined = mask_samples | mask_indexes
+
+        if not include:
+            mask_combined = ~mask_combined
+
+        # Filter `samples`
+        filtered_samples = sample_names[mask_combined].tolist()
+
+        # Filter `calldata_gt`
+        filtered_calldata_gt = np.array(self['calldata_gt'])[:, mask_combined, ...]
+
+        # Filter `haplotypes` (2 haplotypes per sample)
+        haplotype_mask = np.repeat(mask_combined, 2)
+        filtered_haplotypes = np.array(self['haplotypes'])[haplotype_mask].tolist()
+
+        # Filter `lai`
+        filtered_lai = np.array(self['lai'])[:, haplotype_mask]
+
+        if inplace:
+            self['samples'] = filtered_samples
+            self['calldata_gt'] = filtered_calldata_gt
+            self['haplotypes'] = filtered_haplotypes
+            self['lai'] = filtered_lai
+            return None
+        else:
+            snpobj = self.copy()
+            snpobj['samples'] = filtered_samples
+            snpobj['calldata_gt'] = filtered_calldata_gt
+            snpobj['haplotypes'] = filtered_haplotypes
+            snpobj['lai'] = filtered_lai
+            return snpobj
+
     def _sanity_check(self) -> None:
         """
         Perform sanity checks on the parsed data to ensure data integrity.
