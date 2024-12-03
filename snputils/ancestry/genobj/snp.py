@@ -352,14 +352,23 @@ class SNPLevelAncestryObject(AncestryObject):
             return self.__lai.shape[1]
 
     @property
-    def n_windows(self) -> int:
+    def n_snps(self) -> int:
         """
-        Retrieve `n_windows`.
+        Retrieve `n_snps`.
 
         Returns:
-            **int:** The total number of genomic windows.
+            **int:** The total number of SNPs.
         """
-        return self.__lai.shape[0]
+        if self.lai is not None:
+            return self.lai.shape[0]
+        elif self.__calldata_gt is not None:
+            return self.__calldata_gt.shape[0]
+        elif self.variants_ref is not None:
+            return len(self.variants_ref)
+        elif self.variants_pos is not None:
+            return len(self.variants_pos)
+        else:
+            raise ValueError("Unable to determine the total number of SNPs: no relevant data is available.")
 
     def copy(self) -> 'SNPLevelAncestryObject':
         """
@@ -381,6 +390,163 @@ class SNPLevelAncestryObject(AncestryObject):
                 for easier reference to public attributes in the instance.
         """
         return [attr.replace('_SNPLevelAncestryObject__', '').replace('_AncestryObject__', '') for attr in vars(self)]
+
+    def filter_variants(
+        self, 
+        chrom: Optional[Union[str, Sequence[str], np.ndarray, None]] = None, 
+        pos: Optional[Union[int, Sequence[int], np.ndarray, None]] = None, 
+        indexes: Optional[Union[int, Sequence[int], np.ndarray, None]] = None, 
+        include: bool = True, 
+        inplace: bool = False
+    ) -> Optional['SNPLevelAncestryObject']:
+        """
+        Filter variants based on specified chromosome names, variant positions, or variant indexes.
+
+        This method updates the `lai`, `calldata_gt`, `variants_ref`, `variants_alt`, `variants_chrom`, 
+        `variants_filter_pass`, `variants_id`, `variants_pos`, and `variants_qual` attributes to include or 
+        exclude the specified variants. The filtering criteria can be based on chromosome names, variant 
+        positions, or indexes. If multiple criteria are provided, their union is used for filtering. 
+        The order of the variants is preserved.
+
+        Negative indexes are supported and follow 
+        [NumPy's indexing conventions](https://numpy.org/doc/stable/user/basics.indexing.html).
+
+        Args:
+            chrom (str or array_like of str, optional): 
+                Chromosome(s) to filter variants by. Can be a single chromosome as a string or a sequence 
+                of chromosomes. If both `chrom` and `pos` are provided, they must either have matching lengths 
+                (pairing each chromosome with a position) or `chrom` should be a single value that applies to 
+                all positions in `pos`. Default is None. 
+            pos (int or array_like of int, optional): 
+                Position(s) to filter variants by. Can be a single position as an integer or a sequence of positions. 
+                If `chrom` is also provided, `pos` should either match `chrom` in length or `chrom` should be a 
+                single value. Default is None.
+            indexes (int or array_like of int, optional): 
+                Index(es) of the variants to include or exclude. Can be a single index or a sequence
+                of indexes. Negative indexes are supported. Default is None.
+            include (bool, default=True): 
+                If True, includes only the specified variants. If False, excludes the specified
+                variants. Default is True.
+            inplace (bool, default=False): 
+                If True, modifies `self` in place. If False, returns a new `SNPLevelAncestryObject` with the variants 
+                filtered. Default is False.
+
+        Returns:
+            **Optional[SNPLevelAncestryObject]:** 
+                A new `SNPLevelAncestryObject` with the specified variants filtered if `inplace=False`. 
+                If `inplace=True`, modifies `self` in place and returns None.
+        """
+        if chrom is None and pos is None and indexes is None:
+            raise ValueError("At least one of 'chrom', 'pos', or 'indexes' must be provided.")
+
+        n_snps = self.n_snps
+
+        # Convert inputs to arrays for consistency
+        chrom = np.atleast_1d(chrom) if chrom is not None else None
+        pos = np.atleast_1d(pos) if pos is not None else None
+        indexes = np.atleast_1d(indexes) if indexes is not None else None
+
+        # Validate chrom and pos lengths if both are provided
+        if chrom is not None and pos is not None:
+            if len(chrom) != len(pos) and len(chrom) > 1:
+                raise ValueError(
+                    "When both 'chrom' and 'pos' are provided, they must either be of the same length "
+                    "or 'chrom' must be a single value."
+                )
+
+        # Create a mask for chromosome and position filtering
+        mask_combined = np.zeros(n_snps, dtype=bool)
+        if chrom is not None and pos is not None:
+            if len(chrom) == 1:
+                # Apply single chromosome to all positions in `pos`
+                mask_combined = (self['variants_chrom'] == chrom[0]) & np.isin(self['variants_pos'], pos)
+            else:
+                # Vectorized pair matching for chrom and pos
+                query_pairs = np.array(
+                    list(zip(chrom, pos)),
+                    dtype=[
+                        ('chrom', self['variants_chrom'].dtype),
+                        ('pos', self['variants_pos'].dtype)
+                    ]
+                )
+                data_pairs = np.array(
+                    list(zip(self['variants_chrom'], self['variants_pos'])),
+                    dtype=[
+                        ('chrom', self['variants_chrom'].dtype),
+                        ('pos', self['variants_pos'].dtype)
+                    ]
+                )
+                mask_combined = np.isin(data_pairs, query_pairs)
+
+        elif chrom is not None:
+            # Only chromosome filtering
+            mask_combined = np.isin(self['variants_chrom'], chrom)
+        elif pos is not None:
+            # Only position filtering
+            mask_combined = np.isin(self['variants_pos'], pos)
+
+        # Create mask based on indexes if provided
+        if indexes is not None:
+            # Validate indexes, allowing negative indexes
+            out_of_bounds_indexes = indexes[(indexes < -n_snps) | (indexes >= n_snps)]
+            if out_of_bounds_indexes.size > 0:
+                raise ValueError(f"One or more sample indexes are out of bounds.")
+
+            # Handle negative indexes and check for out-of-bounds indexes
+            adjusted_indexes = np.mod(indexes, n_snps)
+
+            # Create mask for specified indexes
+            mask_indexes = np.zeros(n_snps, dtype=bool)
+            mask_indexes[adjusted_indexes] = True
+
+            # Combine with `chrom` and `pos` mask using logical OR (union of all specified criteria)
+            mask_combined = mask_combined | mask_indexes
+
+        # Invert mask if `include` is False
+        if not include:
+            mask_combined = ~mask_combined
+
+        # Define keys to filter
+        keys = [
+            'lai', 'calldata_gt', 'variants_ref', 'variants_alt', 
+            'variants_chrom', 'variants_filter_pass', 'variants_id', 
+            'variants_pos', 'variants_qual'
+        ]
+
+        # Apply filtering based on inplace parameter
+        if inplace:
+            for key in keys:
+                if self[key] is not None:
+                    self[key] = np.asarray(self[key])[mask_combined]
+            return None
+        else:
+            snpobj = self.copy()
+            for key in keys:
+                if snpobj[key] is not None:
+                    snpobj[key] = np.asarray(snpobj[key])[mask_combined]
+            return snpobj
+
+    def _sanity_check(self) -> None:
+        """
+        Perform sanity checks on the parsed data to ensure data integrity.
+
+        This method checks that all unique ancestries in LAI are represented 
+        in the ancestry map.
+
+        Args:
+            lai (np.ndarray): The LAI data array.
+            ancestry_map (dict, optional): A dictionary mapping ancestry codes to region names, if available.
+        """
+        # Get unique ancestries from LAI data
+        unique_ancestries = np.unique(self.lai)
+
+        if self.ancestry_map is not None:
+            # Check if all unique ancestries in the LAI are present in the ancestry map
+            for ancestry in unique_ancestries:
+                if str(ancestry) not in self.ancestry_map:
+                    warnings.warn(
+                        f"Ancestry '{ancestry}' found in LAI data is not represented in the ancestry map."
+                    )
 
     def save_pickle(self, file: Union[str, Path]) -> None:
         """
