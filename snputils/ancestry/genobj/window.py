@@ -7,9 +7,9 @@ from typing import Union, List, Dict, Sequence, Optional
 from .base import AncestryObject
 
 
-class LocalAncestryObject(AncestryObject):
+class WindowLevelAncestryObject(AncestryObject):
     """
-    A class for Local Ancestry Inference (LAI) data.
+    A class for window-level Local Ancestry Inference (LAI) data.
     """
     def __init__(
         self,
@@ -50,7 +50,7 @@ class LocalAncestryObject(AncestryObject):
         n_haplotypes = lai.shape[1]
         n_samples = n_haplotypes // 2
 
-        super(LocalAncestryObject, self).__init__(n_samples, n_ancestries)
+        super(WindowLevelAncestryObject, self).__init__(n_samples, n_ancestries)
 
         self.__haplotypes = haplotypes
         self.__lai = lai
@@ -277,12 +277,12 @@ class LocalAncestryObject(AncestryObject):
         """
         return self.__lai.shape[0]
 
-    def copy(self) -> 'LocalAncestryObject':
+    def copy(self) -> 'WindowLevelAncestryObject':
         """
         Create and return a copy of `self`.
 
         Returns:
-            **LocalAncestryObject:** 
+            **WindowLevelAncestryObject:** 
                 A new instance of the current object.
         """
         return copy.copy(self)
@@ -296,14 +296,14 @@ class LocalAncestryObject(AncestryObject):
                 A list of attribute names, with internal name-mangling removed, 
                 for easier reference to public attributes in the instance.
         """
-        return [attr.replace('_LocalAncestryObject__', '').replace('_AncestryObject__', '') for attr in vars(self)]
+        return [attr.replace('_WindowLevelAncestryObject__', '').replace('_AncestryObject__', '') for attr in vars(self)]
 
     def filter_windows(
             self,
             indexes: Union[int, Sequence[int], np.ndarray],
             include: bool = True,
             inplace: bool = False
-        ) -> Optional['LocalAncestryObject']:
+        ) -> Optional['WindowLevelAncestryObject']:
         """
         Filter genomic windows based on specified indexes. 
 
@@ -322,12 +322,12 @@ class LocalAncestryObject(AncestryObject):
                 If True, includes only the specified windows. If False, excludes the specified
                 windows. Default is True.
             inplace (bool, default=False): 
-                If True, modifies `self` in place. If False, returns a new `LocalAncestryObject` with 
+                If True, modifies `self` in place. If False, returns a new `WindowLevelAncestryObject` with 
                 the windows filtered. Default is False.
 
         Returns:
-            **Optional[LocalAncestryObject]:** 
-                A new `LocalAncestryObject` with the specified windows filtered if `inplace=False`. 
+            **Optional[WindowLevelAncestryObject]:** 
+                A new `WindowLevelAncestryObject` with the specified windows filtered if `inplace=False`. 
                 If `inplace=True`, modifies `self` in place and returns None.
         """
         # Convert indexes to a NumPy array
@@ -388,7 +388,7 @@ class LocalAncestryObject(AncestryObject):
         indexes: Optional[Union[int, Sequence[int], np.ndarray, None]] = None,
         include: bool = True,
         inplace: bool = False
-    ) -> Optional['LocalAncestryObject']:
+    ) -> Optional['WindowLevelAncestryObject']:
         """
         Filter samples based on specified names or indexes.
 
@@ -413,12 +413,12 @@ class LocalAncestryObject(AncestryObject):
                 If True, includes only the specified samples. If False, excludes the specified
                 samples. Default is True.
             inplace (bool, default=False): 
-                If True, modifies `self` in place. If False, returns a new `LocalAncestryObject` with the 
+                If True, modifies `self` in place. If False, returns a new `WindowLevelAncestryObject` with the 
                 samples filtered. Default is False.
 
         Returns:
-            **Optional[LocalAncestryObject]:** 
-                A new `LocalAncestryObject` with the specified samples filtered if `inplace=False`. 
+            **Optional[WindowLevelAncestryObject]:** 
+                A new `WindowLevelAncestryObject` with the specified samples filtered if `inplace=False`. 
                 If `inplace=True`, modifies `self` in place and returns None.
         """
         if samples is None and indexes is None:
