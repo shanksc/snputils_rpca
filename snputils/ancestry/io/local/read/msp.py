@@ -160,7 +160,7 @@ class MSPReader(LAIBaseReader):
         msp_df = pd.read_csv(self.file, sep="\t", comment="#", names=header)
 
         # Extract chromosomes data
-        chromosomes = msp_df['#chm'].to_numpy()
+        chromosomes = msp_df['#chm'].astype(str).to_numpy()
 
         # Extract physical positions (if available)
         column_counter = 1
