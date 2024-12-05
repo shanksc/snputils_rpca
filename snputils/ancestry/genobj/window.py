@@ -615,16 +615,17 @@ class WindowLevelAncestryObject(AncestryObject):
             # Initialize SNP-level ancestry array
             calldata_lai = np.full((n_snps, n_samples, 2), np.nan)
 
-            # Fill calldata_lai for each SNP
-            for snp_idx in range(n_snps):
-                window_idx = snp_to_window_indices[snp_idx]
-                if window_idx == -1:
-                    continue  # SNP not found in any window
-                # Get LAI data for this window
-                lai_values = self.lai[window_idx]  # Shape (n_samples, 2)
+            # Create a boolean mask for valid SNP indices (where window_idx != -1)
+            valid_snp_mask = (snp_to_window_indices != -1)
 
-                # Assign lai_values to calldata_lai at snp_idx
-                calldata_lai[snp_idx] = lai_values
+            # Get the array of valid SNP indices
+            valid_snp_indices = np.where(valid_snp_mask)[0]
+
+            # Get the corresponding window indices for valid SNPs
+            valid_window_indices = snp_to_window_indices[valid_snp_indices]
+
+            # Assign lai_values to calldata_lai for all valid SNPs at once
+            calldata_lai[valid_snp_indices] = self.lai[valid_window_indices][:, np.newaxis, :]  # Shape: (num_valid_snps, 1, 2)
         
         return SNPObject(
             calldata_lai=calldata_lai,
