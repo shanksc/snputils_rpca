@@ -497,6 +497,7 @@ class WindowLevelAncestryObject(AncestryObject):
 
     def convert_to_snp_level(
         self,
+        snpobject: Optional['SNPObject'] = None,
         variants_chrom: Optional[np.ndarray] = None,
         variants_pos: Optional[np.ndarray] = None,
         variants_ref: Optional[np.ndarray] = None,
@@ -513,7 +514,11 @@ class WindowLevelAncestryObject(AncestryObject):
         SNPs uniformly across the start and end positions of each genomic window. Otherwise, the provided SNP 
         coordinates are used to assign ancestry values based on their respective windows.
 
+        If an `SNPObject` is provided, its attributes are used unless explicitly overridden by the function arguments.
+
         Args:
+            snpobject (SNPObject, optional):
+                An existing `SNPObject` to extract SNP attributes from.
             variants_chrom (array of shape (n_snps,), optional): 
                 An array containing the chromosome for each SNP.
             variants_pos (array of shape (n_snps,), optional): 
@@ -533,6 +538,16 @@ class WindowLevelAncestryObject(AncestryObject):
             SNPObject: 
                 A `SNPObject` containing SNP-level ancestry data, along with optional metadata.
         """
+        # Extract attributes from SNPObject if provided
+        if snpobject is not None:
+            variants_chrom = variants_chrom if variants_chrom is not None else snpobject.variants_chrom
+            variants_pos = variants_pos if variants_pos is not None else snpobject.variants_pos
+            variants_ref = variants_ref if variants_ref is not None else snpobject.variants_ref
+            variants_alt = variants_alt if variants_alt is not None else snpobject.variants_alt
+            variants_filter_pass = variants_filter_pass if variants_filter_pass is not None else snpobject.variants_filter_pass
+            variants_id = variants_id if variants_id is not None else snpobject.variants_id
+            variants_qual = variants_qual if variants_qual is not None else snpobject.variants_qual
+
         n_samples = self.n_samples
 
         # Reshape lai to (n_windows, n_samples, 2)
