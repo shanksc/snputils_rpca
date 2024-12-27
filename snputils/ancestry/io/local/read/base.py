@@ -2,7 +2,7 @@ import abc
 from pathlib import Path
 from typing import Union
 
-from snputils.ancestry.genobj.window import WindowLevelAncestryObject
+from snputils.ancestry.genobj.local import LocalAncestryObject
 
 
 class LAIBaseReader(abc.ABC):
@@ -29,12 +29,12 @@ class LAIBaseReader(abc.ABC):
         return self.__file
 
     @abc.abstractmethod
-    def read(self) -> 'WindowLevelAncestryObject':
+    def read(self) -> 'LocalAncestryObject':
         """
         Abstract method to read data from the provided `file`.
 
         Subclasses must implement this method to read and parse the data. 
-        The implementation should construct an instance of `snputils.ancestry.genobj.local.WindowLevelAncestryObject` 
+        The implementation should construct an instance of `snputils.ancestry.genobj.local.LocalAncestryObject` 
         based on the read data.
         """
         pass

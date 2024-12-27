@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .base import LAIBaseReader
-from snputils.ancestry.genobj.window import WindowLevelAncestryObject
+from snputils.ancestry.genobj.local import LocalAncestryObject
 
 log = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 class MSPReader(LAIBaseReader):
     """
     A reader class for parsing Local Ancestry Inference (LAI) data from an `.msp` or `msp.tsv` file
-    and constructing a `snputils.ancestry.genobj.WindowLevelAncestryObject`.
+    and constructing a `snputils.ancestry.genobj.LocalAncestryObject`.
     """
     def __init__(self, file: Union[str, Path]) -> None:
         """
@@ -106,10 +106,10 @@ class MSPReader(LAIBaseReader):
                     return None
         return array
 
-    def read(self) -> 'WindowLevelAncestryObject':
+    def read(self) -> 'LocalAncestryObject':
         """
         Read data from the provided `.msp` or `msp.tsv` `file` and construct a 
-        `snputils.ancestry.genobj.WindowLevelAncestryObject`.
+        `snputils.ancestry.genobj.LocalAncestryObject`.
 
         **Expected MSP content:**
 
@@ -126,8 +126,8 @@ class MSPReader(LAIBaseReader):
         - `SampleID.1`: Local ancestry for the second haplotype of the sample for each window.
 
         Returns:
-            **WindowLevelAncestryObject:**
-                A WindowLevelAncestryObject instance.
+            **LocalAncestryObject:**
+                A LocalAncestryObject instance.
         """
         log.info(f"Reading '{self.file}'...")
 
@@ -231,7 +231,7 @@ class MSPReader(LAIBaseReader):
         chromosomes = self._replace_nan_with_none(chromosomes)
         physical_pos = self._replace_nan_with_none(physical_pos)
 
-        return WindowLevelAncestryObject(
+        return LocalAncestryObject(
             haplotypes=haplotypes,
             lai=lai,
             samples=samples,

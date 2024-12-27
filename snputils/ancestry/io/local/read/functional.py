@@ -1,13 +1,13 @@
 from pathlib import Path
 from typing import Union
 
-from snputils.ancestry.genobj.window import WindowLevelAncestryObject
+from snputils.ancestry.genobj.local import LocalAncestryObject
 
 
-def read_lai(file: Union[str, Path], **kwargs) -> WindowLevelAncestryObject:
+def read_lai(file: Union[str, Path], **kwargs) -> LocalAncestryObject:
     """
     Automatically detect the local ancestry data file format from the file's extension and 
-    read it into a `snputils.ancestry.genobj.WindowLevelAncestryObject`.
+    read it into a `snputils.ancestry.genobj.LocalAncestryObject`.
 
     **Supported formats:**
 
@@ -24,17 +24,17 @@ def read_lai(file: Union[str, Path], **kwargs) -> WindowLevelAncestryObject:
     return LAIReader(file).read(**kwargs)
 
 
-def read_msp(file: Union[str, Path]) -> 'WindowLevelAncestryObject':
+def read_msp(file: Union[str, Path]) -> 'LocalAncestryObject':
     """
-    Read data from an `.msp` or `.msp.tsv` file and construct a `snputils.ancestry.genobj.WindowLevelAncestryObject`.
+    Read data from an `.msp` or `.msp.tsv` file and construct a `snputils.ancestry.genobj.LocalAncestryObject`.
 
     Args:
         file (str or pathlib.Path): 
             Path to the file to be read. It should end with `.msp` or `.msp.tsv`.
 
     Returns:
-        **WindowLevelAncestryObject:**
-            A WindowLevelAncestryObject instance.
+        **LocalAncestryObject:**
+            A LocalAncestryObject instance.
     """
     from snputils.ancestry.io.local.read.msp import MSPReader
 
