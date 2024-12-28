@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import pgenlib as pg
 from pathlib import Path
+from typing import Union
 
 from snputils.snp.genobj import SNPObject
 
@@ -22,14 +23,34 @@ class BEDWriter:
         self.__snpobj = snpobj.copy()
         self.__filename = Path(filename)
 
-    def write(self):
-        """Writes the SNPObject to bed/bim/fam formats."""
+    def write(
+            self,
+            rename_missing_values: bool = True, 
+            before: Union[int, float, str] = -1, 
+            after: Union[int, float, str] = '.'
+        ):
+        """
+        Writes the SNPObject to bed/bim/fam formats.
 
+        Args:
+            rename_missing_values (bool, optional):
+                If True, renames potential missing values in `snpobj.calldata_gt` before writing. 
+                Defaults to True.
+            before (int, float, or str, default=-1): 
+                The current representation of missing values in `calldata_gt`. Common values might be -1, '.', or NaN.
+                Default is -1.
+            after (int, float, or str, default='.'): 
+                The value that will replace `before`. Default is '.'.
+        """
         # Save .bed file
         if self.__filename.suffix != '.bed':
             self.__filename = self.__filename.with_suffix('.bed')
 
         log.info(f"Writing .bed file: {self.__filename}")
+
+        # Optionally rename potential missing values in `snpobj.calldata_gt` before writing
+        if rename_missing_values:
+            self.__snpobj.rename_missings(before=before, after=after, inplace=True)
 
         # If the input matrix has three dimensions, it indicates that the data is divided into two strands.
         if len(self.__snpobj.calldata_gt.shape) == 3:
