@@ -4,6 +4,7 @@ import polars as pl
 import pgenlib as pg
 from pathlib import Path
 import zstandard as zstd
+from typing import Union
 
 from snputils.snp.genobj.snpobj import SNPObject
 
@@ -26,16 +27,35 @@ class PGENWriter:
         self.__snpobj = snpobj
         self.__filename = Path(filename)
 
-    def write(self, vzs: bool = False):
+    def write(
+            self, 
+            vzs: bool = False,
+            rename_missing_values: bool = True, 
+            before: Union[int, float, str] = -1, 
+            after: Union[int, float, str] = '.'
+        ):
         """
         Writes the SNPObject data to .pgen, .psam, and .pvar files.
 
         Args:
-            vzs (bool, optional): If True, compresses the .pvar file using zstd and saves it as .pvar.zst. Defaults to False.
+            vzs (bool, optional): 
+                If True, compresses the .pvar file using zstd and saves it as .pvar.zst. Defaults to False.
+            rename_missing_values (bool, optional):
+                If True, renames potential missing values in `snpobj.calldata_gt` before writing. 
+                Defaults to True.
+            before (int, float, or str, default=-1): 
+                The current representation of missing values in `calldata_gt`. Common values might be -1, '.', or NaN.
+                Default is -1.
+            after (int, float, or str, default='.'): 
+                The value that will replace `before`. Default is '.'.
         """
         file_extensions = (".pgen", ".psam", ".pvar", ".pvar.zst")
         if self.__filename.suffix in file_extensions:
             self.__filename = self.__filename.with_suffix('')
+
+        # Optionally rename potential missing values in `snpobj.calldata_gt` before writing
+        if rename_missing_values:
+            self.__snpobj.rename_missings(before=before, after=after, inplace=True)
 
         self.write_pvar(vzs=vzs)
         self.write_psam()

@@ -2,6 +2,7 @@ import logging
 import pandas as pd
 import numpy as np
 import joblib
+from typing import Union
 from pathlib import Path
 
 from snputils.snp.genobj import SNPObject
@@ -33,13 +34,28 @@ class VCFWriter:
         self.__n_jobs = n_jobs
         self.__phased = phased
 
-    def write(self, chrom_partition: bool = False):
+    def write(
+            self, 
+            chrom_partition: bool = False,
+            rename_missing_values: bool = True, 
+            before: Union[int, float, str] = -1, 
+            after: Union[int, float, str] = '.'
+        ):
         """
         Writes the SNP data to VCF file(s).
 
         Args:
-            chrom_partition: If True, individual VCF files are generated for each chromosome.
+            chrom_partition (bool, optional):
+                If True, individual VCF files are generated for each chromosome.
                 If False, a single VCF file containing data for all chromosomes is created. Defaults to False.
+            rename_missing_values (bool, optional):
+                If True, renames potential missing values in `snpobj.calldata_gt` before writing. 
+                Defaults to True.
+            before (int, float, or str, default=-1): 
+                The current representation of missing values in `calldata_gt`. Common values might be -1, '.', or NaN.
+                Default is -1.
+            after (int, float, or str, default='.'): 
+                The value that will replace `before`. Default is '.'.
         """
         self.__chrom_partition = chrom_partition
 
@@ -49,6 +65,10 @@ class VCFWriter:
             self.__filename = self.__filename.with_suffix('')
         else:
             self.__file_extension = ".vcf"
+
+        # Optionally rename potential missing values in `snpobj.calldata_gt` before writing
+        if rename_missing_values:
+            self.__snpobj.rename_missings(before=before, after=after, inplace=True)
 
         data = self.__snpobj
 
