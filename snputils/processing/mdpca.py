@@ -132,6 +132,7 @@ class mdPCA:
         self.__percent_vals_masked = percent_vals_masked
         self.__X_new_ = None  # Store transformed SNP data
         self.__haplotypes_ = None  # Store haplotypes after filtering if min_percent_snps > 0
+        self.__samples_ = None  # Store samples after filtering if min_percent_snps > 0
 
         # Fit and transform if a `snpobj`, `laiobj`, `labels_file`, and `ancestry` are provided
         if self.snpobj is not None and self.laiobj is not None and self.labels_file is not None and self.ancestry is not None:
@@ -543,6 +544,23 @@ class mdPCA:
             raise TypeError("`x` must be a list or a NumPy array.")
 
     @property
+    def samples_(self) -> Optional[List[str]]:
+        """
+        Retrieve `samples_`.
+
+        Returns:
+            list of str:
+                A list of sample identifiers based on `haplotypes_` and `average_strands`.
+        """
+        haplotypes = self.haplotypes_
+        if haplotypes is None:
+            return None
+        if self.__average_strands:
+            return haplotypes
+        else:
+            return [x[:-2] for x in haplotypes]
+
+    @property
     def n_haplotypes(self) -> Optional[int]:
         """
         Retrieve `n_haplotypes`.
@@ -553,6 +571,18 @@ class mdPCA:
                 (`min_percent_snps > 0`).
         """
         return len(self.haplotypes_)
+
+    @property
+    def n_samples(self) -> Optional[int]:
+        """
+        Retrieve `n_samples`.
+
+        Returns:
+            **int:**
+                The total number of samples, potentially reduced if filtering is applied 
+                (`min_percent_snps > 0`).
+        """
+        return len(np.unique(self.samples_))
 
     def copy(self) -> 'mdPCA':
         """
