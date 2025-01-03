@@ -131,6 +131,8 @@ class mdPCA:
         self.__rsid_or_chrompos = rsid_or_chrompos
         self.__percent_vals_masked = percent_vals_masked
         self.__X_new_ = None  # Store transformed SNP data
+        self.__haplotypes_ = None  # Store haplotypes after filtering if min_percent_snps > 0
+        self.__samples_ = None  # Store samples after filtering if min_percent_snps > 0
 
         # Fit and transform if a `snpobj`, `laiobj`, `labels_file`, and `ancestry` are provided
         if self.snpobj is not None and self.laiobj is not None and self.labels_file is not None and self.ancestry is not None:
@@ -493,6 +495,9 @@ class mdPCA:
         Returns:
             **array of shape (n_samples, n_components):** 
                 The transformed SNP data projected onto the `n_components` principal components.
+                n_haplotypes_ is the number of haplotypes, potentially reduced if filtering is applied 
+                (`min_percent_snps > 0`). For diploid individuals without filtering, the shape is 
+                `(n_samples * 2, n_components)`.
         """
         return self.__X_new_
 
@@ -502,6 +507,82 @@ class mdPCA:
         Update `X_new_`.
         """
         self.__X_new_ = x
+
+    @property
+    def haplotypes_(self) -> Optional[List[str]]:
+        """
+        Retrieve `haplotypes_`.
+
+        Returns:
+            list of str:
+                A list of unique haplotype identifiers.
+        """
+        if isinstance(self.__haplotypes_, np.ndarray):
+            return self.__haplotypes_.ravel().tolist()  # Flatten and convert NumPy array to a list
+        elif isinstance(self.__haplotypes_, list):
+            if len(self.__haplotypes_) == 1 and isinstance(self.__haplotypes_[0], np.ndarray):
+                return self.__haplotypes_[0].ravel().tolist()  # Handle list containing a single array
+            return self.__haplotypes_  # Already a flat list
+        elif self.__haplotypes_ is None:
+            return None  # If no haplotypes are set
+        else:
+            raise TypeError("`haplotypes_` must be a list or a NumPy array.")
+
+    @haplotypes_.setter
+    def haplotypes_(self, x: Union[np.ndarray, List[str]]) -> None:
+        """
+        Update `haplotypes_`.
+        """
+        if isinstance(x, np.ndarray):
+            self.__haplotypes_ = x.ravel().tolist()  # Flatten and convert to a list
+        elif isinstance(x, list):
+            if len(x) == 1 and isinstance(x[0], np.ndarray):  # Handle list containing a single array
+                self.__haplotypes_ = x[0].ravel().tolist()
+            else:
+                self.__haplotypes_ = x  # Use directly if already a list
+        else:
+            raise TypeError("`x` must be a list or a NumPy array.")
+
+    @property
+    def samples_(self) -> Optional[List[str]]:
+        """
+        Retrieve `samples_`.
+
+        Returns:
+            list of str:
+                A list of sample identifiers based on `haplotypes_` and `average_strands`.
+        """
+        haplotypes = self.haplotypes_
+        if haplotypes is None:
+            return None
+        if self.__average_strands:
+            return haplotypes
+        else:
+            return [x[:-2] for x in haplotypes]
+
+    @property
+    def n_haplotypes(self) -> Optional[int]:
+        """
+        Retrieve `n_haplotypes`.
+
+        Returns:
+            **int:**
+                The total number of haplotypes, potentially reduced if filtering is applied 
+                (`min_percent_snps > 0`).
+        """
+        return len(self.haplotypes_)
+
+    @property
+    def n_samples(self) -> Optional[int]:
+        """
+        Retrieve `n_samples`.
+
+        Returns:
+            **int:**
+                The total number of samples, potentially reduced if filtering is applied 
+                (`min_percent_snps > 0`).
+        """
+        return len(np.unique(self.samples_))
 
     def copy(self) -> 'mdPCA':
         """
@@ -918,5 +999,7 @@ class mdPCA:
             X_incomplete,
             weights
         )
+
+        self.haplotypes_ = ind_id_list
 
         return self.X_new_
